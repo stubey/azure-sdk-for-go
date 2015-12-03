@@ -628,7 +628,7 @@ func (s *StorageBlobSuite) TestSnapshotBlob(c *chk.C) {
 	cli := getBlobClient(c)
 	cnt := randContainer()
 	c.Assert(cli.CreateContainer(cnt, ContainerAccessTypePrivate), chk.IsNil)
-	defer cli.deleteContainer(cnt)
+	//defer cli.deleteContainer(cnt)
 
 	blob := randString(20)
 	size := int64(10 * 1024 * 1024)
