@@ -623,6 +623,28 @@ func (s *StorageBlobSuite) TestPutPageBlob(c *chk.C) {
 	c.Assert(props.BlobType, chk.Equals, BlobTypePage)
 }
 
+//func (s *StorageBlobSuite) TestPutPageBlob(c *chk.C) {
+func (s *StorageBlobSuite) TestSnapshotBlob(c *chk.C) {
+	cli := getBlobClient(c)
+	cnt := randContainer()
+	c.Assert(cli.CreateContainer(cnt, ContainerAccessTypePrivate), chk.IsNil)
+	defer cli.deleteContainer(cnt)
+
+	blob := randString(20)
+	size := int64(10 * 1024 * 1024)
+	c.Assert(cli.PutPageBlob(cnt, blob, size), chk.IsNil)
+
+	// Verify
+	props, err := cli.GetBlobProperties(cnt, blob)
+	c.Assert(err, chk.IsNil)
+	c.Assert(props.ContentLength, chk.Equals, size)
+	c.Assert(props.BlobType, chk.Equals, BlobTypePage)
+
+	// Snapshot
+	err = cli.SnapshotBlob(cnt, blob)
+	c.Assert(err, chk.IsNil)
+}
+
 func (s *StorageBlobSuite) TestPutPagesUpdate(c *chk.C) {
 	cli := getBlobClient(c)
 	cnt := randContainer()

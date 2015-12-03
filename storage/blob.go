@@ -626,7 +626,7 @@ func (b BlobStorageClient) CreateBlockBlob(container, name string) error {
 // PutBlock, and PutBlockList.
 //
 // See https://msdn.microsoft.com/en-us/library/azure/dd179451.aspx
-func (b BlobStorageClient) xCreateBlockBlobFromReader(container, name string, size uint64, blob io.Reader) error {
+func (b BlobStorageClient) CreateBlockBlobFromReader(container, name string, size uint64, blob io.Reader) error {
 	path := fmt.Sprintf("%s/%s", container, name)
 	uri := b.client.getEndpoint(blobServiceName, path, url.Values{})
 	headers := b.client.getStandardHeaders()
@@ -716,7 +716,7 @@ func (b BlobStorageClient) GetBlockList(container, name string, blockType BlockL
 // be created using this method before writing pages.
 //
 // See https://msdn.microsoft.com/en-us/library/azure/dd179451.aspx
-func (b BlobStorageClient) PutPageBlob(container, name string, size int64) error {
+func (b BlobStorageClient) xPutPageBlob(container, name string, size int64) error {
 	path := fmt.Sprintf("%s/%s", container, name)
 	uri := b.client.getEndpoint(blobServiceName, path, url.Values{})
 	headers := b.client.getStandardHeaders()
