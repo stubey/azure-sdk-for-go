@@ -6,7 +6,8 @@ import (
 	"os"
 	"testing"
 
-	chk "github.com/Azure/azure-sdk-for-go/Godeps/_workspace/src/gopkg.in/check.v1"
+	//chk "github.com/Azure/azure-sdk-for-go/Godeps/_workspace/src/gopkg.in/check.v1"
+	chk "azure-sdk-for-go/Godeps/_workspace/src/gopkg.in/check.v1"
 )
 
 // Hook up gocheck to testing

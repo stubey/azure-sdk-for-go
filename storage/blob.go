@@ -303,7 +303,7 @@ func (b BlobStorageClient) ListContainers(params ListContainersParameters) (Cont
 // with given name and access level. Returns error if container already exists.
 //
 // See https://msdn.microsoft.com/en-us/library/azure/dd179468.aspx
-func (b BlobStorageClient) CreateContainer(name string, access ContainerAccessType) error {
+func (b BlobStorageClient) xCreateContainer(name string, access ContainerAccessType) error {
 	resp, err := b.createContainer(name, access)
 	if err != nil {
 		return err
@@ -325,7 +325,7 @@ func (b BlobStorageClient) CreateContainerIfNotExists(name string, access Contai
 	return false, err
 }
 
-func (b BlobStorageClient) createContainer(name string, access ContainerAccessType) (*storageResponse, error) {
+func (b BlobStorageClient) xcreateContainer(name string, access ContainerAccessType) (*storageResponse, error) {
 	verb := "PUT"
 	uri := b.client.getEndpoint(blobServiceName, pathForContainer(name), url.Values{"restype": {"container"}})
 
@@ -626,7 +626,7 @@ func (b BlobStorageClient) CreateBlockBlob(container, name string) error {
 // PutBlock, and PutBlockList.
 //
 // See https://msdn.microsoft.com/en-us/library/azure/dd179451.aspx
-func (b BlobStorageClient) CreateBlockBlobFromReader(container, name string, size uint64, blob io.Reader) error {
+func (b BlobStorageClient) xCreateBlockBlobFromReader(container, name string, size uint64, blob io.Reader) error {
 	path := fmt.Sprintf("%s/%s", container, name)
 	uri := b.client.getEndpoint(blobServiceName, path, url.Values{})
 	headers := b.client.getStandardHeaders()
