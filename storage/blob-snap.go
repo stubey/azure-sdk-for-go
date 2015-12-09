@@ -12,7 +12,7 @@ func init() {
 	log.SetFlags(log.Lshortfile)
 }
 
-type BlobClientJ struct {
+type BlobStorageStruct struct {
 	AccountName string
 	AccountKey  []byte
 	UseHTTPS    bool
@@ -20,8 +20,8 @@ type BlobClientJ struct {
 	ApiVersion  string
 }
 
-func BlobClientToJson(c BlobStorageClient) string {
-	c2 := BlobClientJ{
+func BlobStorageClientToJson(c BlobStorageClient) string {
+	c2 := BlobStorageStruct{
 		AccountName: c.client.accountName,
 		AccountKey:  c.client.accountKey,
 		UseHTTPS:    c.client.useHTTPS,

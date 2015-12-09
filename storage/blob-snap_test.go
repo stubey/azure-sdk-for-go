@@ -27,6 +27,7 @@ const testContainerPrefix = "zzzztest-"
 
 func randContainer() string {
 	return testContainerPrefix + randString(32-len(testContainerPrefix))
+	//
 }
 
 func randString(n int) string {
@@ -42,34 +43,26 @@ func randString(n int) string {
 	return string(bytes)
 }
 
-// getBasicClient returns a test client from storage credentials in the env
-func getBasicClient(c *C) storage.Client {
-	name := os.Getenv("ACCOUNT_NAME")
-	if name == "" {
-		c.Fatal("ACCOUNT_NAME not set, need an empty storage account to test")
-	}
-	key := os.Getenv("ACCOUNT_KEY")
-	if key == "" {
-		c.Fatal("ACCOUNT_KEY not set")
-	}
-	cli, err := storage.NewBasicClient(name, key)
-	c.Assert(err, IsNil)
-	return cli
-}
-
-func getBlobClient(c *C) storage.BlobStorageClient {
-	return getBasicClient(c).GetBlobService()
-}
-
 type SnapshotBlobSuite struct{}
 
 var _ = Suite(&SnapshotBlobSuite{})
+
+var name string
+var key string
+
+func init() {
+	key = os.Getenv("ACCOUNT_KEY")
+	name = os.Getenv("ACCOUNT_NAME")
+}
 
 // Run this to create a container and blob and get s SASURI
 // Comment out defer delete to keep the blob around for TestBlobSASURICorrectness2
 // Remember to manually delete the container
 func (s *SnapshotBlobSuite) TestBlobSASURICorrectness1(c *C) {
-	blobClient := getBlobClient(c)
+	blobClient, err := storage.NewBasicClient(name, key)
+	c.Assert(err, IsNil)
+	blobStorageClient := blobClient.GetBlobService()
+
 	containerName := randContainer()
 	blobName := randString(20)
 	size := (1 * 1024)
@@ -77,20 +70,20 @@ func (s *SnapshotBlobSuite) TestBlobSASURICorrectness1(c *C) {
 	expiry := time.Now().UTC().Add(time.Hour)
 	permissions := "r"
 
-	c.Assert(blobClient.CreateContainer(containerName, storage.ContainerAccessTypePrivate), IsNil)
-	defer blobClient.DeleteContainer(containerName)
+	c.Assert(blobStorageClient.CreateContainer(containerName, storage.ContainerAccessTypePrivate), IsNil)
+	defer blobStorageClient.DeleteContainer(containerName)
 
 	// Initialize a PageBlob
-	err := blobClient.PutPageBlob(containerName, blobName, int64(size))
+	err = blobStorageClient.PutPageBlob(containerName, blobName, int64(size))
 	c.Assert(err, IsNil)
 
 	// Update an existing Page Blob
 	// N.B. size - 1 : start and stop are indices
-	err = blobClient.PutPage(containerName, blobName, 0, int64(size-1), storage.PageWriteTypeUpdate, body)
+	err = blobStorageClient.PutPage(containerName, blobName, 0, int64(size-1), storage.PageWriteTypeUpdate, body)
 	c.Assert(err, IsNil)
 
 	// Get SASURI
-	sasURI, err := blobClient.GetBlobSASURI(containerName, blobName, expiry, permissions)
+	sasURI, err := blobStorageClient.GetBlobSASURI(containerName, blobName, expiry, permissions)
 	c.Assert(err, IsNil)
 
 	// Verify SASURI
@@ -104,26 +97,29 @@ func (s *SnapshotBlobSuite) TestBlobSASURICorrectness1(c *C) {
 	c.Assert(resp.StatusCode, Equals, http.StatusOK)
 	c.Assert(len(blobResp), Equals, size)
 
-	log.Printf("blobClient    = ...\n%s", storage.BlobClientToJson(blobClient))
-	log.Printf("containerName = %v", containerName)
-	log.Printf("blobName      = %v", blobName)
-	log.Printf("expiry        = %v", expiry)
-	log.Printf("permissions   = %s", permissions)
-	log.Printf("sasURI        = %s", sasURI)
-	log.Printf("blobResp      = %v", string(blobResp))
+	log.Printf("blobStorageClient = ...\n%s", storage.BlobStorageClientToJson(blobStorageClient))
+	log.Printf("containerName     = %v", containerName)
+	log.Printf("blobName          = %v", blobName)
+	log.Printf("expiry            = %v", expiry)
+	log.Printf("permissions       = %s", permissions)
+	log.Printf("sasURI            = %s", sasURI)
+	log.Printf("blobResp          = %v", string(blobResp))
 }
 
 // Get a SAS URI for a known container and blob
 // Get container and blob names from TestBlobSASURICorrectness
 // Remember to manually delete the container
 func (s *SnapshotBlobSuite) TestBlobSASURICorrectness2(c *C) {
-	blobClient := getBlobClient(c)
+	blobClient, err := storage.NewBasicClient(name, key)
+	c.Assert(err, IsNil)
+	blobStorageClient := blobClient.GetBlobService()
+
 	containerName := `zzzztest-bqb0asd55c95g5doycvok5r`
 	blobName := `0kpayzncfnfxb2fpq063`
 	expiry := time.Now().UTC().Add(time.Hour)
 	permissions := "r"
 
-	sasURI, err := blobClient.GetBlobSASURI(containerName, blobName, expiry, permissions)
+	sasURI, err := blobStorageClient.GetBlobSASURI(containerName, blobName, expiry, permissions)
 	c.Assert(err, IsNil)
 
 	resp, err := http.Get(sasURI)
@@ -134,20 +130,24 @@ func (s *SnapshotBlobSuite) TestBlobSASURICorrectness2(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(resp.StatusCode, Equals, http.StatusOK)
 
-	log.Printf("blobClient    = ...\n%s", storage.BlobClientToJson(blobClient))
-	log.Printf("containerName = %v", containerName)
-	log.Printf("blobName      = %v", blobName)
-	log.Printf("expiry        = %v", expiry)
-	log.Printf("permissions   = %s", permissions)
-	log.Printf("sasURI        = %s", sasURI)
-	log.Printf("blobResp      = %v", string(blobResp))
+	log.Printf("blobStorageClient = ...\n%s", storage.BlobStorageClientToJson(blobStorageClient))
+	log.Printf("containerName     = %v", containerName)
+	log.Printf("blobName          = %v", blobName)
+	log.Printf("expiry            = %v", expiry)
+	log.Printf("permissions       = %s", permissions)
+	log.Printf("sasURI            = %s", sasURI)
+	log.Printf("blobResp          = %v", string(blobResp))
 }
 
 func (s *SnapshotBlobSuite) TestSnapshotBlob(c *C) {
-	blobClient := getBlobClient(c)
+	blobClient, err := storage.NewBasicClient(name, key)
+	c.Assert(err, IsNil)
+	blobStorageClient := blobClient.GetBlobService()
+
 	containerName := randContainer()
-	c.Assert(blobClient.CreateContainer(containerName, storage.ContainerAccessTypePrivate), IsNil)
-	defer blobClient.DeleteContainer(containerName)
+	c.Assert(blobStorageClient.CreateContainer(containerName, storage.ContainerAccessTypePrivate), IsNil)
+	// Delete container when test completes
+	defer blobStorageClient.DeleteContainer(containerName)
 
 	blobName := randString(20)
 	size := (1 * 1024)
@@ -156,39 +156,39 @@ func (s *SnapshotBlobSuite) TestSnapshotBlob(c *C) {
 	permissions := "r"
 
 	// Initialize a PageBlob
-	err := blobClient.PutPageBlob(containerName, blobName, int64(size))
+	err = blobStorageClient.PutPageBlob(containerName, blobName, int64(size))
 	c.Assert(err, IsNil)
 
 	// Update an existing Page Blob
 	// N.B. size - 1 : start and stop are indices
-	err = blobClient.PutPage(containerName, blobName, 0, int64(size-1), storage.PageWriteTypeUpdate, body)
+	err = blobStorageClient.PutPage(containerName, blobName, 0, int64(size-1), storage.PageWriteTypeUpdate, body)
 	c.Assert(err, IsNil)
 
 	// Verify
-	props, err := blobClient.GetBlobProperties(containerName, blobName)
+	props, err := blobStorageClient.GetBlobProperties(containerName, blobName)
 	c.Assert(err, IsNil)
 	c.Assert(props.ContentLength, Equals, int64(size))
 	c.Assert(props.BlobType, Equals, storage.BlobTypePage)
 
-	sasURI, err := blobClient.GetBlobSASURI(containerName, blobName, expiry, permissions)
+	sasURI, err := blobStorageClient.GetBlobSASURI(containerName, blobName, expiry, permissions)
 	c.Assert(err, IsNil)
 
 	// Snapshot
 	// Snapshot is a PUT - has same blobName as original (no body content)
 	// Snapshot Time Identofier is returned in the X-Ms-Snapshot Header
-	res, err := blobClient.SnapshotBlob(containerName, blobName)
+	res, err := blobStorageClient.SnapshotBlob(containerName, blobName)
 	c.Assert(err, IsNil)
 	c.Assert(res.StatusCode, Equals, http.StatusCreated)
 
 	statusCode := res.StatusCode
 	snapTime := res.Headers.Get("X-Ms-Snapshot")
 
-	log.Printf("blobClient    = ...\n%s", storage.BlobClientToJson(blobClient))
-	log.Printf("containerName = %v", containerName)
-	log.Printf("blobName      = %v", blobName)
-	log.Printf("expiry        = %v", expiry)
-	log.Printf("permissions   = %s", permissions)
-	log.Printf("sasURI        = %s", sasURI)
+	log.Printf("blobStorageClient = ...\n%s", storage.BlobStorageClientToJson(blobStorageClient))
+	log.Printf("containerName     = %v", containerName)
+	log.Printf("blobName          = %v", blobName)
+	log.Printf("expiry            = %v", expiry)
+	log.Printf("permissions       = %s", permissions)
+	log.Printf("sasURI            = %s", sasURI)
 	//log.Printf("res           = %+v", res)
 	log.Printf("statusCode    = %+v", statusCode)
 	log.Printf("snapTime      = %+v", snapTime)
