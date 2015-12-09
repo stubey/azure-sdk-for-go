@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -72,24 +71,31 @@ func (s *StorageBlobSuite) TestGetBlobSASURI(c *chk.C) {
 	c.Assert(expectedParts.Query(), chk.DeepEquals, sasParts.Query())
 }
 
-type ClientJ struct {
-	AccountName string
-	AccountKey  []byte
-	UseHTTPS    bool
-	BaseURL     string
-	ApiVersion  string
-}
+func (s *StorageBlobSuite) TestBlobSASURICorrectness(c *chk.C) {
+	cli := getBlobClient(c)
+	cnt := randContainer()
+	blob := randString(20)
+	body := []byte(randString(100))
+	expiry := time.Now().UTC().Add(time.Hour)
+	permissions := "r"
 
-func cliToJson(c BlobStorageClient) string {
-	c2 := ClientJ{
-		AccountName: c.client.accountName,
-		AccountKey:  c.client.accountKey,
-		UseHTTPS:    c.client.useHTTPS,
-		BaseURL:     c.client.baseURL,
-		ApiVersion:  c.client.apiVersion,
-	}
-	txt, _ := json.MarshalIndent(c2, "", "  ")
-	return string(txt)
+	c.Assert(cli.CreateContainer(cnt, ContainerAccessTypePrivate), chk.IsNil)
+	defer cli.DeleteContainer(cnt)
+
+	c.Assert(cli.putSingleBlockBlob(cnt, blob, body), chk.IsNil)
+
+	sasURI, err := cli.GetBlobSASURI(cnt, blob, expiry, permissions)
+	c.Assert(err, chk.IsNil)
+
+	resp, err := http.Get(sasURI)
+	c.Assert(err, chk.IsNil)
+
+	blobResp, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	c.Assert(err, chk.IsNil)
+
+	c.Assert(resp.StatusCode, chk.Equals, http.StatusOK)
+	c.Assert(len(blobResp), chk.Equals, len(body))
 }
 
 func (s *StorageBlobSuite) TestListContainersPagination(c *chk.C) {

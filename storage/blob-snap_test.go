@@ -39,7 +39,7 @@ func (s *StorageBlobSuite) TestBlobSASURICorrectness1(c *chk.C) {
 	permissions := "r"
 
 	c.Assert(cli.CreateContainer(cnt, ContainerAccessTypePrivate), chk.IsNil)
-	//defer cli.DeleteContainer(cnt)
+	defer cli.DeleteContainer(cnt)
 
 	c.Assert(cli.putSingleBlockBlob(cnt, blob, body), chk.IsNil)
 
