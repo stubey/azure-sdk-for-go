@@ -1,117 +1,195 @@
-package storage
+package storage_test
 
 import (
-	"encoding/json"
+	"crypto/rand"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
-	chk "azure-sdk-for-go/Godeps/_workspace/src/gopkg.in/check.v1"
+	"azure-sdk-for-go/storage"
+
+	. "azure-sdk-for-go/Godeps/_workspace/src/gopkg.in/check.v1"
 )
 
-type ClientJ struct {
-	AccountName string
-	AccountKey  []byte
-	UseHTTPS    bool
-	BaseURL     string
-	ApiVersion  string
+// go test -v azure-sdk-for-go/storage -check.vv -check.f SnapshotBlobSuite.TestSnapshotBlob
+
+// azure login -u tom@msazurextremedatainc.onmicrosoft.com
+// azure storage account list => tom-rg-test, tomsatest
+// azure storage account keys list --resource-group tom-rg-test tomsatest => PrimaryKey
+// export ACCOUNT_NAME=tomsatest
+// export ACCOUNT_KEY=PrimaryKey
+// export AZURE_STORAGE_ACCOUNT=tomsatest        // For CLI use, else --account-name
+// export AZURE_STORAGE_ACCESS_KEY=PrimaryKey    // For CLI use, else --account-key
+
+const testContainerPrefix = "zzzztest-"
+
+func randContainer() string {
+	return testContainerPrefix + randString(32-len(testContainerPrefix))
 }
 
-func cliToJson(c BlobStorageClient) string {
-	c2 := ClientJ{
-		AccountName: c.client.accountName,
-		AccountKey:  c.client.accountKey,
-		UseHTTPS:    c.client.useHTTPS,
-		BaseURL:     c.client.baseURL,
-		ApiVersion:  c.client.apiVersion,
+func randString(n int) string {
+	if n <= 0 {
+		panic("negative number")
 	}
-	txt, _ := json.MarshalIndent(c2, "", "  ")
-	return string(txt)
+	const alphanum = "0123456789abcdefghijklmnopqrstuvwxyz"
+	var bytes = make([]byte, n)
+	rand.Read(bytes)
+	for i, b := range bytes {
+		bytes[i] = alphanum[b%byte(len(alphanum))]
+	}
+	return string(bytes)
 }
 
-func (s *StorageBlobSuite) TestBlobSASURICorrectness1(c *chk.C) {
-	cli := getBlobClient(c)
-	cnt := randContainer()
-	blob := randString(20)
-	body := []byte(randString(100))
+// getBasicClient returns a test client from storage credentials in the env
+func getBasicClient(c *C) storage.Client {
+	name := os.Getenv("ACCOUNT_NAME")
+	if name == "" {
+		c.Fatal("ACCOUNT_NAME not set, need an empty storage account to test")
+	}
+	key := os.Getenv("ACCOUNT_KEY")
+	if key == "" {
+		c.Fatal("ACCOUNT_KEY not set")
+	}
+	cli, err := storage.NewBasicClient(name, key)
+	c.Assert(err, IsNil)
+	return cli
+}
+
+func getBlobClient(c *C) storage.BlobStorageClient {
+	return getBasicClient(c).GetBlobService()
+}
+
+type SnapshotBlobSuite struct{}
+
+var _ = Suite(&SnapshotBlobSuite{})
+
+// Run this to create a container and blob and get s SASURI
+// Comment out defer delete to keep the blob around for TestBlobSASURICorrectness2
+// Remember to manually delete the container
+func (s *SnapshotBlobSuite) TestBlobSASURICorrectness1(c *C) {
+	blobClient := getBlobClient(c)
+	containerName := randContainer()
+	blobName := randString(20)
+	size := (1 * 1024)
+	body := []byte(randString(size))
 	expiry := time.Now().UTC().Add(time.Hour)
 	permissions := "r"
 
-	c.Assert(cli.CreateContainer(cnt, ContainerAccessTypePrivate), chk.IsNil)
-	defer cli.DeleteContainer(cnt)
+	c.Assert(blobClient.CreateContainer(containerName, storage.ContainerAccessTypePrivate), IsNil)
+	defer blobClient.DeleteContainer(containerName)
 
-	c.Assert(cli.putSingleBlockBlob(cnt, blob, body), chk.IsNil)
+	// Initialize a PageBlob
+	err := blobClient.PutPageBlob(containerName, blobName, int64(size))
+	c.Assert(err, IsNil)
 
-	sasURI, err := cli.GetBlobSASURI(cnt, blob, expiry, permissions)
-	c.Assert(err, chk.IsNil)
+	// Update an existing Page Blob
+	// N.B. size - 1 : start and stop are indices
+	err = blobClient.PutPage(containerName, blobName, 0, int64(size-1), storage.PageWriteTypeUpdate, body)
+	c.Assert(err, IsNil)
 
+	// Get SASURI
+	sasURI, err := blobClient.GetBlobSASURI(containerName, blobName, expiry, permissions)
+	c.Assert(err, IsNil)
+
+	// Verify SASURI
 	resp, err := http.Get(sasURI)
-	c.Assert(err, chk.IsNil)
+	c.Assert(err, IsNil)
 
 	blobResp, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
-	c.Assert(err, chk.IsNil)
+	c.Assert(err, IsNil)
 
-	c.Assert(resp.StatusCode, chk.Equals, http.StatusOK)
-	c.Assert(len(blobResp), chk.Equals, len(body))
+	c.Assert(resp.StatusCode, Equals, http.StatusOK)
+	c.Assert(len(blobResp), Equals, size)
 
-	log.Printf("cli    = %T - ...\n%s", cli, cliToJson(cli))
-	log.Printf("cnt    = %T - %v", cnt, cnt)
-	log.Printf("blob   = %T - %v", blob, blob)
-	log.Printf("body   = %T - %s", body, string(body))
-	log.Printf("expiry = %T - %v", expiry, expiry)
-	log.Printf("permissions   = %T - %s", permissions, permissions)
-	log.Printf("sasURI   = %T - %s", sasURI, sasURI)
-	log.Printf("blobResp = %T - %v", blobResp, string(blobResp))
+	log.Printf("blobClient    = ...\n%s", storage.BlobClientToJson(blobClient))
+	log.Printf("containerName = %v", containerName)
+	log.Printf("blobName      = %v", blobName)
+	log.Printf("expiry        = %v", expiry)
+	log.Printf("permissions   = %s", permissions)
+	log.Printf("sasURI        = %s", sasURI)
+	log.Printf("blobResp      = %v", string(blobResp))
 }
 
-func (s *StorageBlobSuite) TestBlobSASURICorrectness2(c *chk.C) {
-	cli := getBlobClient(c)
-
-	cnt := `zzzztest-oyf8qoya3sws9pj9eimopei`
-	blob := `k73nbr4x70ytaapo0lvn`
+// Get a SAS URI for a known container and blob
+// Get container and blob names from TestBlobSASURICorrectness
+// Remember to manually delete the container
+func (s *SnapshotBlobSuite) TestBlobSASURICorrectness2(c *C) {
+	blobClient := getBlobClient(c)
+	containerName := `zzzztest-bqb0asd55c95g5doycvok5r`
+	blobName := `0kpayzncfnfxb2fpq063`
 	expiry := time.Now().UTC().Add(time.Hour)
 	permissions := "r"
 
-	sasURI, err := cli.GetBlobSASURI(cnt, blob, expiry, permissions)
-	c.Assert(err, chk.IsNil)
+	sasURI, err := blobClient.GetBlobSASURI(containerName, blobName, expiry, permissions)
+	c.Assert(err, IsNil)
 
 	resp, err := http.Get(sasURI)
-	c.Assert(err, chk.IsNil)
+	c.Assert(err, IsNil)
 
 	blobResp, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
-	c.Assert(err, chk.IsNil)
-	c.Assert(resp.StatusCode, chk.Equals, http.StatusOK)
+	c.Assert(err, IsNil)
+	c.Assert(resp.StatusCode, Equals, http.StatusOK)
 
-	log.Printf("cli    = %T - ...\n%s", cli, cliToJson(cli))
-	log.Printf("cnt    = %T - %v", cnt, cnt)
-	log.Printf("blob   = %T - %v", blob, blob)
-	log.Printf("expiry = %T - %v", expiry, expiry)
-	log.Printf("permissions   = %T - %s", permissions, permissions)
-	log.Printf("sasURI   = %T - %s", sasURI, sasURI)
-	log.Printf("blobResp = %T - %v", blobResp, string(blobResp))
+	log.Printf("blobClient    = ...\n%s", storage.BlobClientToJson(blobClient))
+	log.Printf("containerName = %v", containerName)
+	log.Printf("blobName      = %v", blobName)
+	log.Printf("expiry        = %v", expiry)
+	log.Printf("permissions   = %s", permissions)
+	log.Printf("sasURI        = %s", sasURI)
+	log.Printf("blobResp      = %v", string(blobResp))
 }
 
-//func (s *StorageBlobSuite) TestPutPageBlob(c *chk.C) {
-func (s *StorageBlobSuite) TestSnapshotBlob(c *chk.C) {
-	cli := getBlobClient(c)
-	cnt := randContainer()
-	c.Assert(cli.CreateContainer(cnt, ContainerAccessTypePrivate), chk.IsNil)
-	defer cli.deleteContainer(cnt)
+func (s *SnapshotBlobSuite) TestSnapshotBlob(c *C) {
+	blobClient := getBlobClient(c)
+	containerName := randContainer()
+	c.Assert(blobClient.CreateContainer(containerName, storage.ContainerAccessTypePrivate), IsNil)
+	defer blobClient.DeleteContainer(containerName)
 
-	blob := randString(20)
-	size := int64(10 * 1024 * 1024)
-	c.Assert(cli.PutPageBlob(cnt, blob, size), chk.IsNil)
+	blobName := randString(20)
+	size := (1 * 1024)
+	body := []byte(randString(size))
+	expiry := time.Now().UTC().Add(time.Hour)
+	permissions := "r"
+
+	// Initialize a PageBlob
+	err := blobClient.PutPageBlob(containerName, blobName, int64(size))
+	c.Assert(err, IsNil)
+
+	// Update an existing Page Blob
+	// N.B. size - 1 : start and stop are indices
+	err = blobClient.PutPage(containerName, blobName, 0, int64(size-1), storage.PageWriteTypeUpdate, body)
+	c.Assert(err, IsNil)
 
 	// Verify
-	props, err := cli.GetBlobProperties(cnt, blob)
-	c.Assert(err, chk.IsNil)
-	c.Assert(props.ContentLength, chk.Equals, size)
-	c.Assert(props.BlobType, chk.Equals, BlobTypePage)
+	props, err := blobClient.GetBlobProperties(containerName, blobName)
+	c.Assert(err, IsNil)
+	c.Assert(props.ContentLength, Equals, int64(size))
+	c.Assert(props.BlobType, Equals, storage.BlobTypePage)
+
+	sasURI, err := blobClient.GetBlobSASURI(containerName, blobName, expiry, permissions)
+	c.Assert(err, IsNil)
 
 	// Snapshot
-	err = cli.SnapshotBlob(cnt, blob)
-	c.Assert(err, chk.IsNil)
+	// Snapshot is a PUT - has same blobName as original (no body content)
+	// Snapshot Time Identofier is returned in the X-Ms-Snapshot Header
+	res, err := blobClient.SnapshotBlob(containerName, blobName)
+	c.Assert(err, IsNil)
+	c.Assert(res.StatusCode, Equals, http.StatusCreated)
+
+	statusCode := res.StatusCode
+	snapTime := res.Headers.Get("X-Ms-Snapshot")
+
+	log.Printf("blobClient    = ...\n%s", storage.BlobClientToJson(blobClient))
+	log.Printf("containerName = %v", containerName)
+	log.Printf("blobName      = %v", blobName)
+	log.Printf("expiry        = %v", expiry)
+	log.Printf("permissions   = %s", permissions)
+	log.Printf("sasURI        = %s", sasURI)
+	//log.Printf("res           = %+v", res)
+	log.Printf("statusCode    = %+v", statusCode)
+	log.Printf("snapTime      = %+v", snapTime)
 }

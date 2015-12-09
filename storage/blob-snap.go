@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,17 +12,32 @@ func init() {
 	log.SetFlags(log.Lshortfile)
 }
 
-// azure login -u tom@msazurextremedatainc.onmicrosoft.com
-// azure storage account list => tom-rg-test, tomsatest
-// azure storage account keys list --resource-group tom-rg-test tomsatest => PrimaryKey
-// export ACCOUNT_NAME=tomsatest
-// export ACCOUNT_KEY=PrimaryKey
-// export AZURE_STORAGE_ACCOUNT=tomsatest        // For CLI use
-// export AZURE_STORAGE_ACCESS_KEY=PrimaryKey    // For CLI use
-// go test -v azure-sdk-for-go/storage/ --check.vv --check.f StorageBlobSuite.TestBlobSASURICorrectness1
-// https://msdn.microsoft.com/en-us/library/azure/ee691971.aspx
+type BlobClientJ struct {
+	AccountName string
+	AccountKey  []byte
+	UseHTTPS    bool
+	BaseURL     string
+	ApiVersion  string
+}
 
-func (b BlobStorageClient) SnapshotBlob(container, name string) error {
+func BlobClientToJson(c BlobStorageClient) string {
+	c2 := BlobClientJ{
+		AccountName: c.client.accountName,
+		AccountKey:  c.client.accountKey,
+		UseHTTPS:    c.client.useHTTPS,
+		BaseURL:     c.client.baseURL,
+		ApiVersion:  c.client.apiVersion,
+	}
+	txt, _ := json.MarshalIndent(c2, "", "  ")
+	return string(txt)
+}
+
+type SnapshotResponse struct {
+	StatusCode int
+	Headers    http.Header
+}
+
+func (b BlobStorageClient) SnapshotBlob(container, name string) (res SnapshotResponse, err error) {
 	verb := "PUT"
 	path := fmt.Sprintf("%s/%s", container, name)
 
@@ -42,9 +58,15 @@ func (b BlobStorageClient) SnapshotBlob(container, name string) error {
 
 	resp, err := b.client.exec(verb, uri, headers, nil)
 	if err != nil {
-		return err
+		return
 	}
+	// Actually, no body content since a PUT - still need to close
 	defer resp.body.Close()
 
-	return checkRespCode(resp.statusCode, []int{http.StatusCreated})
+	res = SnapshotResponse{
+		StatusCode: resp.statusCode,
+		Headers:    resp.headers,
+	}
+
+	return
 }
