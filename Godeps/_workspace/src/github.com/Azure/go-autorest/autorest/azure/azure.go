@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Azure/azure-sdk-for-go/Godeps/_workspace/src/github.com/Azure/go-autorest/autorest"
+	"azure-sdk-for-go/Godeps/_workspace/src/github.com/Azure/go-autorest/autorest"
 )
 
 const (

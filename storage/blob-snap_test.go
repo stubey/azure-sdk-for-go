@@ -53,6 +53,8 @@ var key string
 func init() {
 	key = os.Getenv("ACCOUNT_KEY")
 	name = os.Getenv("ACCOUNT_NAME")
+
+	log.SetFlags(log.Lshortfile)
 }
 
 // Run this to create a container and blob and get s SASURI
