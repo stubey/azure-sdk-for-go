@@ -19,9 +19,10 @@ package resources
 // regenerated.
 
 import (
-	"github.com/Azure/azure-sdk-for-go/Godeps/_workspace/src/github.com/Azure/go-autorest/autorest"
 	"net/http"
 	"net/url"
+
+	"azure-sdk-for-go/Godeps/_workspace/src/github.com/Azure/go-autorest/autorest"
 )
 
 // ProvidersClient is the client for the Providers methods of the Resources

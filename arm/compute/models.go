@@ -19,10 +19,11 @@ package compute
 // regenerated.
 
 import (
-	"github.com/Azure/azure-sdk-for-go/Godeps/_workspace/src/github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/azure-sdk-for-go/Godeps/_workspace/src/github.com/Azure/go-autorest/autorest/date"
-	"github.com/Azure/azure-sdk-for-go/Godeps/_workspace/src/github.com/Azure/go-autorest/autorest/to"
 	"net/http"
+
+	"azure-sdk-for-go/Godeps/_workspace/src/github.com/Azure/go-autorest/autorest"
+	"azure-sdk-for-go/Godeps/_workspace/src/github.com/Azure/go-autorest/autorest/date"
+	"azure-sdk-for-go/Godeps/_workspace/src/github.com/Azure/go-autorest/autorest/to"
 )
 
 // CachingTypes enumerates the values for caching types.

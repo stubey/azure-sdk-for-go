@@ -19,9 +19,10 @@ package compute
 // regenerated.
 
 import (
-	"github.com/Azure/azure-sdk-for-go/Godeps/_workspace/src/github.com/Azure/go-autorest/autorest"
 	"net/http"
 	"net/url"
+
+	"azure-sdk-for-go/Godeps/_workspace/src/github.com/Azure/go-autorest/autorest"
 )
 
 // UsageOperationsClient is the the Compute Management Client.
