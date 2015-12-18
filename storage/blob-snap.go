@@ -37,25 +37,29 @@ type SnapshotResponse struct {
 	Headers    http.Header
 }
 
+func showRequest(name string, container string, verb string, uri string, headers map[string]string) (string, error) {
+	s := struct {
+		Name      string
+		Container string
+		Verb      string
+		URI       string
+		Headers   map[string]string
+	}{name, container, verb, uri, headers}
+	jbytes, err := json.MarshalIndent(s, "", "  ")
+	return string(jbytes), err
+}
+
 func (b BlobStorageClient) SnapshotBlob(container, name string) (res SnapshotResponse, err error) {
 	verb := "PUT"
 	path := fmt.Sprintf("%s/%s", container, name)
-
-	// Snapshot cmd
+	// blob cmd
 	urlValues := url.Values{"comp": {"snapshot"}}
 
 	uri := b.client.getEndpoint(blobServiceName, path, urlValues)
 	headers := b.client.getStandardHeaders()
 	headers["Content-Length"] = fmt.Sprintf("%v", 0)
 
-	log.Printf("\n====  SnapshotBlob()")
-	log.Printf("container = %s", container)
-	log.Printf("name      = %s", name)
-	log.Printf("verb      = %s", verb)
-	//log.Printf("urlValues = %+v", urlValues)
-	log.Printf("uri       = %s", uri)
-	log.Printf("headers   = %+v", headers)
-
+	log.Printf(showRequest(name, container, verb, uri, headers))
 	resp, err := b.client.exec(verb, uri, headers, nil)
 	if err != nil {
 		return
