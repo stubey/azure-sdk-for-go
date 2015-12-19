@@ -134,6 +134,11 @@ func (c Client) getBaseURL(service string) string {
 	return u.String()
 }
 
+// Export GetEndpoint()
+func (c Client) GetEndpoint(service string, path string, params url.Values) string {
+	return c.getEndpoint(service, path, params)
+}
+
 func (c Client) getEndpoint(service, path string, params url.Values) string {
 	u, err := url.Parse(c.getBaseURL(service))
 	if err != nil {
