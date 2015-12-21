@@ -37,7 +37,7 @@ type SnapshotResponse struct {
 	Headers    http.Header
 }
 
-func (b BlobStorageClient) SnapshotBlob(container, name string) (res SnapshotResponse, err error) {
+func (b BlobStorageClient) SnapshotBlob(container, name string, meta map[string]string) (res SnapshotResponse, err error) {
 	verb := "PUT"
 	path := fmt.Sprintf("%s/%s", container, name)
 
@@ -47,6 +47,12 @@ func (b BlobStorageClient) SnapshotBlob(container, name string) (res SnapshotRes
 	uri := b.client.getEndpoint(blobServiceName, path, urlValues)
 	headers := b.client.getStandardHeaders()
 	headers["Content-Length"] = fmt.Sprintf("%v", 0)
+
+	// headers["x-ms-meta-foo"] = "bar"
+	for key, value := range meta {
+		hv := fmt.Sprintf("x-ms-meta-%s", key)
+		headers[hv] = value
+	}
 
 	log.Printf("\n====  SnapshotBlob()")
 	log.Printf("container = %s", container)

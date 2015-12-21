@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -174,10 +175,12 @@ func (c Client) createAuthorizationHeader(canonicalizedString string) string {
 }
 
 func (c Client) getAuthorizationHeader(verb, url string, headers map[string]string) (string, error) {
+	log.Printf("TRACE: headers = %+v", headers)
 	canonicalizedResource, err := c.buildCanonicalizedResource(url)
 	if err != nil {
 		return "", err
 	}
+	log.Printf("TRACE: canonicalizedResource = %+v", canonicalizedResource)
 
 	canonicalizedString := c.buildCanonicalizedString(verb, headers, canonicalizedResource)
 	return c.createAuthorizationHeader(canonicalizedString), nil
@@ -191,6 +194,7 @@ func (c Client) getStandardHeaders() map[string]string {
 }
 
 func (c Client) buildCanonicalizedHeader(headers map[string]string) string {
+	log.Printf("TRACE: headers = %+v", headers)
 	cm := make(map[string]string)
 
 	for k, v := range headers {
@@ -211,7 +215,7 @@ func (c Client) buildCanonicalizedHeader(headers map[string]string) string {
 	}
 
 	sort.Strings(keys)
-
+	log.Printf("TRACE: keys = %+v", keys)
 	ch := ""
 
 	for i, key := range keys {
@@ -221,10 +225,12 @@ func (c Client) buildCanonicalizedHeader(headers map[string]string) string {
 			ch += fmt.Sprintf("%s:%s\n", key, cm[key])
 		}
 	}
+	log.Printf("TRACE: ch = %+v", ch)
 	return ch
 }
 
 func (c Client) buildCanonicalizedResource(uri string) (string, error) {
+	log.Printf("TRACE: uri - %v", uri)
 	errMsg := "buildCanonicalizedResource error: %s"
 	u, err := url.Parse(uri)
 	if err != nil {
@@ -240,6 +246,7 @@ func (c Client) buildCanonicalizedResource(uri string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf(errMsg, err.Error())
 	}
+	log.Printf("TRACE: params = %+v", params)
 
 	if len(params) > 0 {
 		cr += "\n"
@@ -266,6 +273,7 @@ func (c Client) buildCanonicalizedResource(uri string) (string, error) {
 }
 
 func (c Client) buildCanonicalizedString(verb string, headers map[string]string, canonicalizedResource string) string {
+	log.Printf("TRACE: headers = %+v", headers)
 	canonicalizedString := fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s",
 		verb,
 		headers["Content-Encoding"],
@@ -281,12 +289,14 @@ func (c Client) buildCanonicalizedString(verb string, headers map[string]string,
 		headers["Range"],
 		c.buildCanonicalizedHeader(headers),
 		canonicalizedResource)
-
 	return canonicalizedString
 }
 
 func (c Client) exec(verb, url string, headers map[string]string, body io.Reader) (*storageResponse, error) {
+	log.Printf("TRACE: url = %s", url)
+	log.Printf("TRACE: headers = %+v", headers)
 	authHeader, err := c.getAuthorizationHeader(verb, url, headers)
+	log.Printf("TRACE: authHeader = %+v", authHeader)
 	if err != nil {
 		return nil, err
 	}
@@ -310,6 +320,7 @@ func (c Client) exec(verb, url string, headers map[string]string, body io.Reader
 			return nil, err
 		}
 	}
+	log.Printf("TRACE: headers = %+v", headers)
 	for k, v := range headers {
 		req.Header.Add(k, v)
 	}
