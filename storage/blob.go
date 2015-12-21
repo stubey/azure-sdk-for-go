@@ -803,6 +803,11 @@ func (b BlobStorageClient) CopyBlob(container, name, sourceBlob string) error {
 	return b.waitForBlobCopy(container, name, copyID)
 }
 
+// Export startBlobCopy()
+func (b BlobStorageClient) StartBlobCopy(container, name, sourceBlob string) (string, error) {
+	return b.startBlobCopy(container, name, sourceBlob)
+}
+
 func (b BlobStorageClient) startBlobCopy(container, name, sourceBlob string) (string, error) {
 	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), url.Values{})
 
@@ -825,6 +830,11 @@ func (b BlobStorageClient) startBlobCopy(container, name, sourceBlob string) (st
 		return "", errors.New("Got empty copy id header")
 	}
 	return copyID, nil
+}
+
+// Export waitForBlobCopy()
+func (b BlobStorageClient) WaitForBlobCopy(container, name, copyID string) error {
+	return b.waitForBlobCopy(container, name, copyID)
 }
 
 func (b BlobStorageClient) waitForBlobCopy(container, name, copyID string) error {
