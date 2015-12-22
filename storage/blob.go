@@ -54,8 +54,15 @@ type ContainerListResponse struct {
 // A Blob is an entry in BlobListResponse.
 type Blob struct {
 	Name       string         `xml:"Name"`
+	Snapshot   string         `xml:"Snapshot"`
 	Properties BlobProperties `xml:"Properties"`
+	Metadata   BlobMetadata   `xml:"Metadata"`
 	// TODO (ahmetalpbalkan) Metadata
+}
+
+type BlobMetadata struct {
+	Snapid string `xml:"Snapid"`
+	Time   string `xml:"Time"`
 }
 
 // BlobProperties contains various properties of a blob
@@ -409,6 +416,12 @@ func (b BlobStorageClient) ListBlobs(container string, params ListBlobsParameter
 		return out, err
 	}
 	defer resp.body.Close()
+
+	// body, err := ioutil.ReadAll(resp.body)
+	// if err != nil {
+	// 	return out, err
+	// }
+	// log.Printf("=====\n%+v\n=====", string(body))
 
 	err = xmlUnmarshal(resp.body, &out)
 	return out, err
