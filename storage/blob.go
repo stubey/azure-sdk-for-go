@@ -587,6 +587,7 @@ func (b BlobStorageClient) SetBlobMetadata(container, name string, metadata map[
 //
 // See https://msdn.microsoft.com/en-us/library/azure/dd179414.aspx
 func (b BlobStorageClient) GetBlobMetadata(container, name string) (map[string]string, error) {
+	params := url.Values{"comp": {"metadata"}, "snapshot": {"2015-12-22T20:33:43.9355961Z"}}
 	params := url.Values{"comp": {"metadata"}}
 	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), params)
 	headers := b.client.getStandardHeaders()
