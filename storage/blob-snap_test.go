@@ -13,7 +13,7 @@ import (
 	. "azure-sdk-for-go/Godeps/_workspace/src/gopkg.in/check.v1"
 )
 
-// go test -v azure-sdk-for-go/storage -check.vv -check.f SnapshotBlobSuite.TestSnapshotBlob
+// go test -v azure-sdk-for-go/storage -check.vv -check.f SnapshotSuite.TestSnapshot
 
 // azure login -u tom@msazurextremedatainc.onmicrosoft.com
 // azure group create --location eastus tomrgsnaptest
@@ -65,9 +65,9 @@ func randString(n int) string {
 	return string(bytes)
 }
 
-type SnapshotBlobSuite struct{}
+type SnapshotSuite struct{}
 
-var _ = Suite(&SnapshotBlobSuite{})
+var _ = Suite(&SnapshotSuite{})
 
 func init() {
 	log.SetFlags(log.Lshortfile)
@@ -76,7 +76,7 @@ func init() {
 // Run this to create a container and blob and get s SASURI
 // Comment out defer delete to keep the blob around for TestBlobSASURICorrectness2
 // Remember to manually delete the container
-func (s *SnapshotBlobSuite) TestBlobSASURICorrectness1(c *C) {
+func (s *SnapshotSuite) TestBlobSASURICorrectness1(c *C) {
 	blobClient := getBasicClient(c)
 	blobService := blobClient.GetBlobService()
 
@@ -126,7 +126,7 @@ func (s *SnapshotBlobSuite) TestBlobSASURICorrectness1(c *C) {
 // Get a SAS URI for a known container and blob
 // Get container and blob names from TestBlobSASURICorrectness
 // Remember to manually delete the container
-func (s *SnapshotBlobSuite) TestBlobSASURICorrectness2(c *C) {
+func (s *SnapshotSuite) TestBlobSASURICorrectness2(c *C) {
 	blobClient := getBasicClient(c)
 	blobService := blobClient.GetBlobService()
 
@@ -155,7 +155,7 @@ func (s *SnapshotBlobSuite) TestBlobSASURICorrectness2(c *C) {
 	log.Printf("blobResp          = %v", string(blobResp))
 }
 
-func (s *SnapshotBlobSuite) TestSnapshotBlob(c *C) {
+func (s *SnapshotSuite) TestSnapshot(c *C) {
 	blobClient := getBasicClient(c)
 	blobService := blobClient.GetBlobService()
 
@@ -192,7 +192,7 @@ func (s *SnapshotBlobSuite) TestSnapshotBlob(c *C) {
 	// Snapshot
 	// Snapshot is a PUT - has same blob as original (no body content)
 	// Snapshot Time Identofier is returned in the X-Ms-Snapshot Header
-	res, err := blobService.SnapshotBlob(container, blob, storage.Metadata{})
+	res, err := blobService.Snapshot(container, blob, storage.Metadata{})
 	c.Assert(err, IsNil)
 	c.Assert(res.StatusCode, Equals, http.StatusCreated)
 
@@ -210,7 +210,7 @@ func (s *SnapshotBlobSuite) TestSnapshotBlob(c *C) {
 	log.Printf("snapTime      = %+v", snapTime)
 }
 
-func (s *SnapshotBlobSuite) TestSnapExists(c *C) {
+func (s *SnapshotSuite) TestSnapExists(c *C) {
 	blobClient := getBasicClient(c)
 	blobService := blobClient.GetBlobService()
 
@@ -233,7 +233,7 @@ func (s *SnapshotBlobSuite) TestSnapExists(c *C) {
 	err = blobService.PutPage(container, blob, 0, int64(size-1), storage.PageWriteTypeUpdate, body)
 	c.Assert(err, IsNil)
 
-	res, err := blobService.SnapshotBlob(container, blob, storage.Metadata{})
+	res, err := blobService.Snapshot(container, blob, storage.Metadata{})
 	c.Assert(err, IsNil)
 	c.Assert(res.StatusCode, Equals, http.StatusCreated)
 	snaptime := res.Headers.Get("X-Ms-Snapshot")
@@ -254,4 +254,13 @@ func (s *SnapshotBlobSuite) TestSnapExists(c *C) {
 	ok, err = blobService.BlobExists(container, badsnap)
 	c.Assert(err, IsNil)
 	c.Assert(ok, Equals, false)
+}
+
+func (s *SnapshotSuite) TestSnapGetURL(c *C) {
+	api, err := storage.NewBasicClient("foo", "YmFy")
+	c.Assert(err, IsNil)
+	cli := api.GetBlobService()
+
+	// TODO: Is this right? ? => %3F
+	c.Assert(cli.GetBlobURL("c", "nested/blob?snapshot=2015-12-23T17:51:38.8999249Z"), Equals, "https://foo.blob.core.windows.net/c/nested/blob%3Fsnapshot=2015-12-23T17:51:38.8999249Z")
 }

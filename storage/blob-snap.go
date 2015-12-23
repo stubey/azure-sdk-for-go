@@ -67,7 +67,7 @@ func showRequest(name string, container string, verb string, uri string, headers
 	return string(jbytes), err
 }
 
-func (b BlobStorageClient) SnapshotBlob(container, name string, meta Metadata) (res SnapshotResponse, err error) {
+func (b BlobStorageClient) Snapshot(container, name string, meta Metadata) (res SnapshotResponse, err error) {
 	verb := "PUT"
 	path := fmt.Sprintf("%s/%s", container, name)
 	// blob cmd
