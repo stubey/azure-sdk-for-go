@@ -431,7 +431,12 @@ func (b BlobStorageClient) ListBlobs(container string, params ListBlobsParameter
 // container of the storage account.
 func (b BlobStorageClient) BlobExists(container, name string) (bool, error) {
 	verb := "HEAD"
-	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), url.Values{})
+
+	parts, err := ParseURLNameQuery(name)
+	if err != nil {
+		return false, err
+	}
+	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, parts.Name), parts.Query)
 
 	headers := b.client.getStandardHeaders()
 	resp, err := b.client.exec(verb, uri, headers, nil)
@@ -587,7 +592,7 @@ func (b BlobStorageClient) SetBlobMetadata(container, name string, metadata map[
 //
 // See https://msdn.microsoft.com/en-us/library/azure/dd179414.aspx
 func (b BlobStorageClient) GetBlobMetadata(container, name string) (map[string]string, error) {
-	params := url.Values{"comp": {"metadata"}, "snapshot": {"2015-12-22T20:33:43.9355961Z"}}
+	//params := url.Values{"comp": {"metadata"}, "snapshot": {"2015-12-22T20:33:43.9355961Z"}}
 	params := url.Values{"comp": {"metadata"}}
 	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), params)
 	headers := b.client.getStandardHeaders()

@@ -12,6 +12,24 @@ func init() {
 	log.SetFlags(log.Lshortfile)
 }
 
+type Metadata map[string]string
+
+type ParsedURLNameQuery struct {
+	Name  string
+	Query url.Values
+}
+
+func ParseURLNameQuery(name string) (parsedURL ParsedURLNameQuery, err error) {
+	uri, err := url.Parse(name)
+	if err != nil {
+		return
+	}
+	parsedURL.Query = uri.Query()
+	uri.RawQuery = ""
+	parsedURL.Name = uri.String()
+	return
+}
+
 type BlobStorageStruct struct {
 	AccountName string
 	AccountKey  []byte
@@ -49,7 +67,7 @@ func showRequest(name string, container string, verb string, uri string, headers
 	return string(jbytes), err
 }
 
-func (b BlobStorageClient) SnapshotBlob(container, name string, meta map[string]string) (res SnapshotResponse, err error) {
+func (b BlobStorageClient) SnapshotBlob(container, name string, meta Metadata) (res SnapshotResponse, err error) {
 	verb := "PUT"
 	path := fmt.Sprintf("%s/%s", container, name)
 	// blob cmd
@@ -64,7 +82,8 @@ func (b BlobStorageClient) SnapshotBlob(container, name string, meta map[string]
 		headers[hv] = value
 	}
 
-	log.Printf(showRequest(name, container, verb, uri, headers))
+	req, _ := showRequest(name, container, verb, uri, headers)
+	log.Printf("%s", req)
 	resp, err := b.client.exec(verb, uri, headers, nil)
 	if err != nil {
 		return
