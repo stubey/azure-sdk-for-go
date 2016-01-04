@@ -16,17 +16,18 @@ import (
 // go test -v azure-sdk-for-go/storage -check.vv -check.f SnapshotSuite.TestSnapshot
 
 // azure login -u tom@msazurextremedatainc.onmicrosoft.com
-// azure group create --location eastus tomrgsnaptest
-// azure storage account create --resource-group tomrgsnaptest --type LRS --location eastus tomsasnaptest
-// azure storage account list => tomsasnaptest / tomrgsnaptest
-// azure storage account keys list --resource-group tomrgsnaptest tomsasnaptest => PrimaryKey
-// export ACCOUNT_NAME=tomsasnaptest
+// azure group create --location eastus tom0rgsnaptest
+// azure storage account create --resource-group tom0rgsnaptest --type LRS --location eastus tom0sasnaptest
+// azure storage account list => tom0sasnaptest / tom0rgsnaptest
+// azure storage account keys list --resource-group tom0rgsnaptest tom0sasnaptest => PrimaryKey
+// export ACCOUNT_NAME=tom0sasnaptest
 // export ACCOUNT_KEY=PrimaryKey
 // export AZURE_STORAGE_ACCOUNT=tomsatest        // For CLI use, else --account-name
 // export AZURE_STORAGE_ACCESS_KEY=PrimaryKey    // For CLI use, else --account-key
 
 const testContainerPrefix = "zzzzsnaptest-"
 
+// Query ENV for a STORAGE_ACCOUNT_NAME and STORAGE_ACCOUNT_KEY to test with
 func getBlobClient(c *C) storage.BlobStorageClient {
 	bc := getBasicClient(c)
 	return bc.GetBlobService()
@@ -34,13 +35,13 @@ func getBlobClient(c *C) storage.BlobStorageClient {
 
 // getBasicClient returns a test client from storage credentials in the env
 func getBasicClient(c *C) storage.Client {
-	name := os.Getenv("ACCOUNT_NAME")
+	name := os.Getenv("STORAGE_ACCOUNT_NAME")
 	if name == "" {
-		c.Fatal("ACCOUNT_NAME not set, need an empty storage account to test")
+		c.Fatal("STORAGE_ACCOUNT_NAME not set, need an empty storage account to test")
 	}
-	key := os.Getenv("ACCOUNT_KEY")
+	key := os.Getenv("STORAGE_ACCOUNT_KEY")
 	if key == "" {
-		c.Fatal("ACCOUNT_KEY not set")
+		c.Fatal("STORAGE_ACCOUNT_KEY not set")
 	}
 	cli, err := storage.NewBasicClient(name, key)
 	c.Assert(err, IsNil)
@@ -74,7 +75,7 @@ func init() {
 }
 
 // Run this to create a container and blob and get s SASURI
-// Comment out defer delete to keep the blob around for TestBlobSASURICorrectness2
+// Comment out "defer blobService.DeleteContainer(containerName)" to keep the blob around for TestBlobSASURICorrectness2
 // Remember to manually delete the container
 func (s *SnapshotSuite) TestBlobSASURICorrectness1(c *C) {
 	blobClient := getBasicClient(c)
@@ -155,7 +156,20 @@ func (s *SnapshotSuite) TestBlobSASURICorrectness2(c *C) {
 	log.Printf("blobResp          = %v", string(blobResp))
 }
 
-func (s *SnapshotSuite) TestSnapshot(c *C) {
+func createStorageAccount() {
+	// azure login -u tom@msazurextremedatainc.onmicrosoft.com
+	// azure group create --location eastus --name tom0rgsnaptest
+	// - azure group list | grep tom0rgsnaptest
+	// - azure group delete --quiet tom0rgsnaptest
+	// azure storage account create --resource-group tom0rgsnaptest --type LRS --location eastus tom0sasnaptest
+	// -- azure storage account list --resource-group tom0rgsnaptest
+	// azure storage account keys  list --resource-group tom0rgsnaptest tom0sasnaptest
+	// export STORAGE_ACCOUNT_NAME=tom0sasnaptest
+	// export STORAGE_ACCOUNT_KEY=
+	// go test -v azure-sdk-for-go/storage -check.vv -check.f SnapshotSuite.TestSnapExists
+}
+
+func (s *SnapshotSuite) TestSnapCreate(c *C) {
 	blobClient := getBasicClient(c)
 	blobService := blobClient.GetBlobService()
 
@@ -202,9 +216,9 @@ func (s *SnapshotSuite) TestSnapshot(c *C) {
 	log.Printf("blobService = ...\n%s", storage.BlobStorageClientToJson(blobService))
 	log.Printf("container     = %v", container)
 	log.Printf("blob          = %v", blob)
-	log.Printf("expiry            = %v", expiry)
-	log.Printf("permissions       = %s", permissions)
-	log.Printf("sasURI            = %s", sasURI)
+	log.Printf("expiry        = %v", expiry)
+	log.Printf("permissions   = %s", permissions)
+	log.Printf("sasURI        = %s", sasURI)
 	//log.Printf("res           = %+v", res)
 	log.Printf("statusCode    = %+v", statusCode)
 	log.Printf("snapTime      = %+v", snapTime)
@@ -246,7 +260,7 @@ func (s *SnapshotSuite) TestSnapExists(c *C) {
 	c.Assert(ok, Equals, true)
 
 	snapfmt := "2006-01-02T15:04:05.9999999Z"
-	// Go way back to avoid time zone issues (local datetime is in future of remote)
+	// Go back 24*Hours to avoid time zone issues (local datetime is in future of remote)
 	badSnaptime := time.Now().Add(time.Duration(-24 * time.Hour)).Format(snapfmt)
 	c.Assert(snaptime, Not(Equals), badSnaptime)
 	badsnap := blob + "?snapshot=" + badSnaptime
