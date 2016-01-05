@@ -511,7 +511,12 @@ func (b BlobStorageClient) getBlobRange(container, name, bytesRange string) (*st
 // blob. See https://msdn.microsoft.com/en-us/library/azure/dd179394.aspx
 func (b BlobStorageClient) GetBlobProperties(container, name string) (*BlobProperties, error) {
 	verb := "HEAD"
-	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), url.Values{})
+	// uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), url.Values{})
+	parts, err := ParseURLNameQuery(name)
+	if err != nil {
+		return nil, err
+	}
+	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, parts.Name), parts.Query)
 
 	headers := b.client.getStandardHeaders()
 	resp, err := b.client.exec(verb, uri, headers, nil)
@@ -569,7 +574,15 @@ func (b BlobStorageClient) GetBlobProperties(container, name string) (*BlobPrope
 // See https://msdn.microsoft.com/en-us/library/azure/dd179414.aspx
 func (b BlobStorageClient) SetBlobMetadata(container, name string, metadata map[string]string) error {
 	params := url.Values{"comp": {"metadata"}}
+
+	parts, err := ParseURLNameQuery(name)
+	if err != nil {
+		return err
+	}
+	name = parts.Name
+	params = mergeParams(params, parts.Query)
 	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), params)
+
 	headers := b.client.getStandardHeaders()
 	for k, v := range metadata {
 		headers[userDefinedMetadataHeaderPrefix+k] = v
@@ -594,6 +607,14 @@ func (b BlobStorageClient) SetBlobMetadata(container, name string, metadata map[
 func (b BlobStorageClient) GetBlobMetadata(container, name string) (map[string]string, error) {
 	//params := url.Values{"comp": {"metadata"}, "snapshot": {"2015-12-22T20:33:43.9355961Z"}}
 	params := url.Values{"comp": {"metadata"}}
+
+	parts, err := ParseURLNameQuery(name)
+	if err != nil {
+		return nil, err
+	}
+	name = parts.Name
+	params = mergeParams(params, parts.Query)
+
 	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), params)
 	headers := b.client.getStandardHeaders()
 

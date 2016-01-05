@@ -67,7 +67,8 @@ func showRequest(name string, container string, verb string, uri string, headers
 	return string(jbytes), err
 }
 
-func (b BlobStorageClient) Snapshot(container, name string, meta Metadata) (res SnapshotResponse, err error) {
+func (b BlobStorageClient) Snapshot(container, name string, metaSnap Metadata) (res SnapshotResponse, err error) {
+
 	verb := "PUT"
 	path := fmt.Sprintf("%s/%s", container, name)
 	// blob cmd
@@ -77,7 +78,16 @@ func (b BlobStorageClient) Snapshot(container, name string, meta Metadata) (res 
 	headers := b.client.getStandardHeaders()
 	headers["Content-Length"] = fmt.Sprintf("%v", 0)
 
-	for key, value := range meta {
+	// Merge original blob metadata with snap metadata
+	metaBlob, err := b.client.GetBlobService().GetBlobMetadata(container, name)
+	if err != nil {
+		return
+	}
+	for key, value := range metaBlob {
+		hv := fmt.Sprintf("x-ms-meta-%s", key)
+		headers[hv] = value
+	}
+	for key, value := range metaSnap {
 		hv := fmt.Sprintf("x-ms-meta-%s", key)
 		headers[hv] = value
 	}

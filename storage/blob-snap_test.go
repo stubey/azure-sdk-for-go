@@ -22,7 +22,7 @@ import (
 // azure storage account keys list --resource-group tom0rgsnaptest tom0sasnaptest => PrimaryKey
 // export ACCOUNT_NAME=tom0sasnaptest
 // export ACCOUNT_KEY=PrimaryKey
-// export AZURE_STORAGE_ACCOUNT=tomsatest        // For CLI use, else --account-name
+// export AZURE_STORAGE_ACCOUNT=tom0sasnaptest        // For CLI use, else --account-name
 // export AZURE_STORAGE_ACCESS_KEY=PrimaryKey    // For CLI use, else --account-key
 
 const testContainerPrefix = "zzzzsnaptest-"
@@ -156,6 +156,7 @@ func (s *SnapshotSuite) TestBlobSASURICorrectness2(c *C) {
 	log.Printf("blobResp          = %v", string(blobResp))
 }
 
+// CLI commands to create a Resource Group and Storage Account and add to ENV strings
 func createStorageAccount() {
 	// azure login -u tom@msazurextremedatainc.onmicrosoft.com
 	// azure group create --location eastus --name tom0rgsnaptest
@@ -205,8 +206,9 @@ func (s *SnapshotSuite) TestSnapCreate(c *C) {
 
 	// Snapshot
 	// Snapshot is a PUT - has same blob as original (no body content)
-	// Snapshot Time Identofier is returned in the X-Ms-Snapshot Header
-	res, err := blobService.Snapshot(container, blob, storage.Metadata{})
+	// Snapshot Time Identifier is returned in the X-Ms-Snapshot Header
+	meta := storage.Metadata{"someKey": "someValue"}
+	res, err := blobService.Snapshot(container, blob, meta)
 	c.Assert(err, IsNil)
 	c.Assert(res.StatusCode, Equals, http.StatusCreated)
 
@@ -222,9 +224,10 @@ func (s *SnapshotSuite) TestSnapCreate(c *C) {
 	//log.Printf("res           = %+v", res)
 	log.Printf("statusCode    = %+v", statusCode)
 	log.Printf("snapTime      = %+v", snapTime)
+	log.Printf("res.Headers   = %+v", res.Headers)
 }
 
-func (s *SnapshotSuite) TestSnapExists(c *C) {
+func (s *SnapshotSuite) TestSnapBlobExists(c *C) {
 	blobClient := getBasicClient(c)
 	blobService := blobClient.GetBlobService()
 
@@ -261,6 +264,7 @@ func (s *SnapshotSuite) TestSnapExists(c *C) {
 
 	snapfmt := "2006-01-02T15:04:05.9999999Z"
 	// Go back 24*Hours to avoid time zone issues (local datetime is in future of remote)
+	// Else Azure detects a bad request due to future timestamp without doing an actual query
 	badSnaptime := time.Now().Add(time.Duration(-24 * time.Hour)).Format(snapfmt)
 	c.Assert(snaptime, Not(Equals), badSnaptime)
 	badsnap := blob + "?snapshot=" + badSnaptime
@@ -270,11 +274,134 @@ func (s *SnapshotSuite) TestSnapExists(c *C) {
 	c.Assert(ok, Equals, false)
 }
 
-func (s *SnapshotSuite) TestSnapGetURL(c *C) {
+// Just tests that snapshot name can be formed by
+func (s *SnapshotSuite) TestSnapGetBlobURL(c *C) {
 	api, err := storage.NewBasicClient("foo", "YmFy")
 	c.Assert(err, IsNil)
-	cli := api.GetBlobService()
+	blobService := api.GetBlobService()
 
-	// TODO: Is this right? ? => %3F
-	c.Assert(cli.GetBlobURL("c", "nested/blob?snapshot=2015-12-23T17:51:38.8999249Z"), Equals, "https://foo.blob.core.windows.net/c/nested/blob%3Fsnapshot=2015-12-23T17:51:38.8999249Z")
+	c.Assert(blobService.GetBlobURL("c", "nested/blob?snapshot=2015-12-23T17:51:38.8999249Z"), Equals, "https://foo.blob.core.windows.net/c/nested/blob%3Fsnapshot=2015-12-23T17:51:38.8999249Z")
+}
+
+func (s *SnapshotSuite) TestSnapGetBlobProperties(c *C) {
+	// === Create a snapshot :: Start
+	blobClient := getBasicClient(c)
+	blobService := blobClient.GetBlobService()
+
+	container := randContainer()
+	c.Assert(blobService.CreateContainer(container, storage.ContainerAccessTypePrivate), IsNil)
+	// Delete container when test completes
+	defer blobService.DeleteContainer(container)
+
+	blob := randString(20)
+	size := (1 * 1024)
+	body := []byte(randString(size))
+
+	// Initialize an empty PageBlob
+	err := blobService.PutPageBlob(container, blob, int64(size))
+	c.Assert(err, IsNil)
+	defer blobService.DeleteBlob(container, blob)
+
+	// Update an existing Page Blob
+	// N.B. size - 1 : start and stop are indices
+	err = blobService.PutPage(container, blob, 0, int64(size-1), storage.PageWriteTypeUpdate, body)
+	c.Assert(err, IsNil)
+
+	res, err := blobService.Snapshot(container, blob, storage.Metadata{})
+	c.Assert(err, IsNil)
+	c.Assert(res.StatusCode, Equals, http.StatusCreated)
+	snaptime := res.Headers.Get("X-Ms-Snapshot")
+	snap := blob + "?snapshot=" + snaptime
+	log.Printf("snap = %v", snap)
+	defer blobService.DeleteBlob(container, snap)
+	// === Create a snapshot :: End
+
+	// Get blob properties
+	props, err := blobService.GetBlobProperties(container, snap)
+	c.Assert(err, IsNil)
+
+	c.Assert(props.ContentLength, Equals, int64(len(body)))
+	c.Assert(props.BlobType, Equals, storage.BlobTypePage)
+}
+
+func (s *SnapshotSuite) TestSnapGetBlobMetadata(c *C) {
+	// === Create a snapshot :: Start
+	blobClient := getBasicClient(c)
+	blobService := blobClient.GetBlobService()
+
+	container := randContainer()
+	c.Assert(blobService.CreateContainer(container, storage.ContainerAccessTypePrivate), IsNil)
+	// Delete container when test completes
+	defer blobService.DeleteContainer(container)
+
+	blob := randString(20)
+	size := (1 * 1024)
+	body := []byte(randString(size))
+
+	// Initialize an empty PageBlob
+	err := blobService.PutPageBlob(container, blob, int64(size))
+	c.Assert(err, IsNil)
+	defer blobService.DeleteBlob(container, blob)
+
+	// Add some blob metadata
+	blobMeta := map[string]string{
+		"blobMetaKey1": "blobMetaValue1",
+	}
+	err = blobService.SetBlobMetadata(container, blob, blobMeta)
+
+	// Update an existing Page Blob
+	// N.B. size - 1 : start and stop are indices
+	err = blobService.PutPage(container, blob, 0, int64(size-1), storage.PageWriteTypeUpdate, body)
+	c.Assert(err, IsNil)
+
+	// N.B. - Keys may get camelCased
+	snapCreateMeta := storage.Metadata{"snapMetaKey1": "snapMetaValue1", "snapMetaKey2": "snapMetaValue2"}
+	res, err := blobService.Snapshot(container, blob, snapCreateMeta)
+	c.Assert(err, IsNil)
+	c.Assert(res.StatusCode, Equals, http.StatusCreated)
+	snaptime := res.Headers.Get("X-Ms-Snapshot")
+	snap := blob + "?snapshot=" + snaptime
+	log.Printf("snap = %v", snap)
+	defer blobService.DeleteBlob(container, snap)
+	// === Create a snapshot :: End
+
+	m, err := blobService.GetBlobMetadata(container, snap)
+	c.Assert(err, IsNil)
+	c.Assert(m, Not(Equals), nil)
+	c.Assert(len(m), Equals, 3) // 1 blob + 2 snap
+
+	// N.B. - GetBlobMetadata() returns lowercases keys
+	c.Assert(m["blobmetakey1"], Equals, "blobMetaValue1")
+	c.Assert(m["snapmetakey1"], Equals, "snapMetaValue1")
+
+	// snapSetMeta := map[string]string{
+	// 	"snapAddKey1": "snapAddValue1",
+	// 	"snapAddKey2": "snapAddValue2",
+	// }
+
+	// Can't set snapshot metadata!  Maybe set it on the container
+	// err = blobService.SetBlobMetadata(container, snap, snapSetMeta)
+	// c.Assert(err, IsNil)
+
+	// m, err = blobService.GetBlobMetadata(container, snap)
+	// c.Assert(err, IsNil)
+	// c.Check(m, DeepEquals, mPut)
+
+	// // Case munging
+
+	// mPutUpper := map[string]string{
+	// 	"Foo":     "different bar",
+	// 	"bar_BAZ": "different waz qux",
+	// }
+	// mExpectLower := map[string]string{
+	// 	"foo":     "different bar",
+	// 	"bar_baz": "different waz qux",
+	// }
+
+	// err = blobService.SetBlobMetadata(container, snap, mPutUpper)
+	// c.Assert(err, IsNil)
+
+	// m, err = blobService.GetBlobMetadata(container, snap)
+	// c.Assert(err, IsNil)
+	// c.Check(m, DeepEquals, mExpectLower)
 }
