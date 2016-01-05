@@ -581,33 +581,31 @@ func (s *SnapshotSuite) TestSnapBlobCopy(c *C) {
 
 	// Copy the blob
 	snapURL := blobService.GetBlobURL(container, snap)
-	srcBlobURL := blobService.GetBlobURL(container, blob)
 	log.Printf("container = %v", container)
 	log.Printf("dstBlob   = %v", dstBlob)
 	log.Printf("snapURL   = %v", snapURL)
-	log.Printf("srcBlobURL   = %v", srcBlobURL)
 	err = blobService.CopyBlob(container, dstBlob, snapURL)
-	if err != nil {
-		log.Printf("Copy Failed xxxxxxxxx")
-	}
 	c.Assert(err, IsNil)
-	defer blobService.DeleteBlob(container, dstBlob)
+	defer func() {
+		err := blobService.DeleteBlob(container, dstBlob)
+		c.Check(err, IsNil)
+	}()
 
-	// blobBody, err := blobService.GetBlob(container, dstBlob)
-	// c.Assert(err, IsNil)
+	blobBody, err := blobService.GetBlob(container, dstBlob)
+	c.Assert(err, IsNil)
 
-	// b, err := ioutil.ReadAll(blobBody)
-	// defer blobBody.Close()
-	// c.Assert(err, IsNil)
-	// c.Assert(b, DeepEquals, body)
+	b, err := ioutil.ReadAll(blobBody)
+	defer blobBody.Close()
+	c.Assert(err, IsNil)
+	c.Assert(b, DeepEquals, body)
 
-	// // Check new blob metadata same as snapshot
-	// m, err := blobService.GetBlobMetadata(container, dstBlob)
-	// c.Assert(err, IsNil)
-	// c.Assert(m, Not(Equals), nil)
-	// c.Assert(len(m), Equals, 3) // 1 blob + 2 snap
-
-	// // N.B. - GetBlobMetadata() returns lowercases keys
-	// c.Assert(m["blobmetakey1"], Equals, "blobMetaValue1")
-	// c.Assert(m["snapmetakey1"], Equals, "snapMetaValue1")
+	// Check new blob metadata same as snapshot
+	m, err := blobService.GetBlobMetadata(container, dstBlob)
+	c.Assert(err, IsNil)
+	c.Assert(m, Not(Equals), nil)
+	c.Assert(len(m), Equals, 3) // 1 blob + 2 snap
+	// N.B. - GetBlobMetadata() returns lowercases keys
+	c.Assert(m["blobmetakey1"], Equals, "blobMetaValue1")
+	c.Assert(m["snapid"], Equals, snapid)
+	c.Assert(m["snapmetakey1"], Equals, "snapMetaValue1")
 }

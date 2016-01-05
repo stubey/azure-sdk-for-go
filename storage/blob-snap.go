@@ -92,13 +92,11 @@ func (b BlobStorageClient) Snapshot(container, name string, metaSnap Metadata) (
 		headers[hv] = value
 	}
 
-	req, _ := showRequest(name, container, verb, uri, headers)
-	log.Printf("%s", req)
+	//req, _ := showRequest(name, container, verb, uri, headers)
 	resp, err := b.client.exec(verb, uri, headers, nil)
 	if err != nil {
 		return
 	}
-	// Actually, no body content since a PUT - still need to close
 	defer resp.body.Close()
 
 	res = SnapshotResponse{
