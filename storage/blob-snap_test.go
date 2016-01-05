@@ -129,7 +129,7 @@ func (s *SnapshotSuite) TestBlobSASURICorrectness1(c *C) {
 // Get a SAS URI for a known container and blob
 // Get container and blob names from TestBlobSASURICorrectness
 // Remember to manually delete the container
-func (s *SnapshotSuite) TestBlobSASURICorrectness2(c *C) {
+func (s *SnapshotSuite) xTestBlobSASURICorrectness2(c *C) {
 	blobClient := getBasicClient(c)
 	blobService := blobClient.GetBlobService()
 
@@ -282,7 +282,7 @@ func (s *SnapshotSuite) TestSnapGetBlobURL(c *C) {
 	c.Assert(err, IsNil)
 	blobService := api.GetBlobService()
 
-	c.Assert(blobService.GetBlobURL("c", "nested/blob?snapshot=2015-12-23T17:51:38.8999249Z"), Equals, "https://foo.blob.core.windows.net/c/nested/blob%3Fsnapshot=2015-12-23T17:51:38.8999249Z")
+	c.Assert(blobService.GetBlobURL("c", "nested/blob?snapshot=2015-12-23T17:51:38.8999249Z"), Equals, "https://foo.blob.core.windows.net/c/nested/blob?snapshot=2015-12-23T17%3A51%3A38.8999249Z")
 }
 
 func (s *SnapshotSuite) TestSnapGetBlobProperties(c *C) {
@@ -292,8 +292,10 @@ func (s *SnapshotSuite) TestSnapGetBlobProperties(c *C) {
 
 	container := randContainer()
 	c.Assert(blobService.CreateContainer(container, storage.ContainerAccessTypePrivate), IsNil)
-	// Delete container when test completes
-	defer blobService.DeleteContainer(container)
+	defer func() {
+		err := blobService.DeleteContainer(container)
+		c.Check(err, IsNil)
+	}()
 
 	blob := randString(20)
 	size := (1 * 1024)
@@ -302,20 +304,41 @@ func (s *SnapshotSuite) TestSnapGetBlobProperties(c *C) {
 	// Initialize an empty PageBlob
 	err := blobService.PutPageBlob(container, blob, int64(size))
 	c.Assert(err, IsNil)
-	defer blobService.DeleteBlob(container, blob)
+	defer func() {
+		err := blobService.DeleteBlob(container, blob)
+		c.Check(err, IsNil)
+	}()
 
-	// Update an existing Page Blob
+	// Add some blob metadata
+	blobMeta := map[string]string{
+		"blobMetaKey1": "blobMetaValue1",
+	}
+	err = blobService.SetBlobMetadata(container, blob, blobMeta)
+
+	// Write body to existing Page Blob
 	// N.B. size - 1 : start and stop are indices
 	err = blobService.PutPage(container, blob, 0, int64(size-1), storage.PageWriteTypeUpdate, body)
 	c.Assert(err, IsNil)
 
-	res, err := blobService.Snapshot(container, blob, storage.Metadata{})
+	// Prepare some metadata - N.B. Keys get camelCased
+	snapid := time.Now().Format(time.RFC3339Nano)
+	snapMeta := storage.Metadata{
+		"snapid":       snapid,
+		"snapMetaKey1": "snapMetaValue1",
+	}
+
+	// Do snapshot
+	res, err := blobService.Snapshot(container, blob, snapMeta)
 	c.Assert(err, IsNil)
 	c.Assert(res.StatusCode, Equals, http.StatusCreated)
+
+	// Retrieve snapshot id from response header
 	snaptime := res.Headers.Get("X-Ms-Snapshot")
 	snap := blob + "?snapshot=" + snaptime
-	log.Printf("snap = %v", snap)
-	defer blobService.DeleteBlob(container, snap)
+	defer func() {
+		err := blobService.DeleteBlob(container, snap)
+		c.Check(err, IsNil)
+	}()
 	// === Create a snapshot :: End
 
 	// Get blob properties
@@ -333,8 +356,10 @@ func (s *SnapshotSuite) TestSnapGetBlobMetadata(c *C) {
 
 	container := randContainer()
 	c.Assert(blobService.CreateContainer(container, storage.ContainerAccessTypePrivate), IsNil)
-	// Delete container when test completes
-	defer blobService.DeleteContainer(container)
+	defer func() {
+		err := blobService.DeleteContainer(container)
+		c.Check(err, IsNil)
+	}()
 
 	blob := randString(20)
 	size := (1 * 1024)
@@ -343,7 +368,10 @@ func (s *SnapshotSuite) TestSnapGetBlobMetadata(c *C) {
 	// Initialize an empty PageBlob
 	err := blobService.PutPageBlob(container, blob, int64(size))
 	c.Assert(err, IsNil)
-	defer blobService.DeleteBlob(container, blob)
+	defer func() {
+		err := blobService.DeleteBlob(container, blob)
+		c.Check(err, IsNil)
+	}()
 
 	// Add some blob metadata
 	blobMeta := map[string]string{
@@ -351,20 +379,30 @@ func (s *SnapshotSuite) TestSnapGetBlobMetadata(c *C) {
 	}
 	err = blobService.SetBlobMetadata(container, blob, blobMeta)
 
-	// Update an existing Page Blob
+	// Write body to existing Page Blob
 	// N.B. size - 1 : start and stop are indices
 	err = blobService.PutPage(container, blob, 0, int64(size-1), storage.PageWriteTypeUpdate, body)
 	c.Assert(err, IsNil)
 
-	// N.B. - Keys may get camelCased
-	snapMeta := storage.Metadata{"snapMetaKey1": "snapMetaValue1", "snapMetaKey2": "snapMetaValue2"}
+	// Prepare some metadata - N.B. Keys get camelCased
+	snapid := time.Now().Format(time.RFC3339Nano)
+	snapMeta := storage.Metadata{
+		"snapid":       snapid,
+		"snapMetaKey1": "snapMetaValue1",
+	}
+
+	// Do snapshot
 	res, err := blobService.Snapshot(container, blob, snapMeta)
 	c.Assert(err, IsNil)
 	c.Assert(res.StatusCode, Equals, http.StatusCreated)
+
+	// Retrieve snapshot id from response header
 	snaptime := res.Headers.Get("X-Ms-Snapshot")
 	snap := blob + "?snapshot=" + snaptime
-	log.Printf("snap = %v", snap)
-	defer blobService.DeleteBlob(container, snap)
+	defer func() {
+		err := blobService.DeleteBlob(container, snap)
+		c.Check(err, IsNil)
+	}()
 	// === Create a snapshot :: End
 
 	m, err := blobService.GetBlobMetadata(container, snap)
@@ -374,6 +412,7 @@ func (s *SnapshotSuite) TestSnapGetBlobMetadata(c *C) {
 
 	// N.B. - GetBlobMetadata() returns lowercases keys
 	c.Assert(m["blobmetakey1"], Equals, "blobMetaValue1")
+	c.Assert(m["snapid"], Equals, snapid)
 	c.Assert(m["snapmetakey1"], Equals, "snapMetaValue1")
 
 	// snapSetMeta := map[string]string{
@@ -408,6 +447,63 @@ func (s *SnapshotSuite) TestSnapGetBlobMetadata(c *C) {
 	// c.Check(m, DeepEquals, mExpectLower)
 }
 
+func (s *SnapshotSuite) TestSnapDeleteBlob(c *C) {
+	// === Create a snapshot :: Start
+	blobClient := getBasicClient(c)
+	blobService := blobClient.GetBlobService()
+
+	container := randContainer()
+	c.Assert(blobService.CreateContainer(container, storage.ContainerAccessTypePrivate), IsNil)
+	defer func() {
+		err := blobService.DeleteContainer(container)
+		c.Check(err, IsNil)
+	}()
+
+	blob := randString(20)
+	size := (1 * 1024)
+	body := []byte(randString(size))
+
+	// Initialize an empty PageBlob
+	err := blobService.PutPageBlob(container, blob, int64(size))
+	c.Assert(err, IsNil)
+	defer func() {
+		err := blobService.DeleteBlob(container, blob)
+		c.Check(err, IsNil)
+	}()
+
+	// Add some blob metadata
+	blobMeta := map[string]string{
+		"blobMetaKey1": "blobMetaValue1",
+	}
+	err = blobService.SetBlobMetadata(container, blob, blobMeta)
+
+	// Write body to existing Page Blob
+	// N.B. size - 1 : start and stop are indices
+	err = blobService.PutPage(container, blob, 0, int64(size-1), storage.PageWriteTypeUpdate, body)
+	c.Assert(err, IsNil)
+
+	// Prepare some metadata - N.B. Keys get camelCased
+	snapid := time.Now().Format(time.RFC3339Nano)
+	snapMeta := storage.Metadata{
+		"snapid":       snapid,
+		"snapMetaKey1": "snapMetaValue1",
+	}
+
+	// Do snapshot
+	res, err := blobService.Snapshot(container, blob, snapMeta)
+	c.Assert(err, IsNil)
+	c.Assert(res.StatusCode, Equals, http.StatusCreated)
+
+	// Retrieve snapshot id from response header
+	snaptime := res.Headers.Get("X-Ms-Snapshot")
+	snap := blob + "?snapshot=" + snaptime
+	defer func() {
+		err := blobService.DeleteBlob(container, snap)
+		c.Check(err, IsNil)
+	}()
+	// === Create a snapshot :: End
+}
+
 func (s *SnapshotSuite) TestSnapBlobCopy(c *C) {
 	if testing.Short() {
 		c.Skip("skipping blob copy in short mode, no SLA on async operation")
@@ -419,8 +515,10 @@ func (s *SnapshotSuite) TestSnapBlobCopy(c *C) {
 
 	container := randContainer()
 	c.Assert(blobService.CreateContainer(container, storage.ContainerAccessTypePrivate), IsNil)
-	// Delete container when test completes
-	defer blobService.DeleteContainer(container)
+	defer func() {
+		err := blobService.DeleteContainer(container)
+		c.Check(err, IsNil)
+	}()
 
 	blob := randString(20)
 	size := (1 * 1024)
@@ -429,7 +527,10 @@ func (s *SnapshotSuite) TestSnapBlobCopy(c *C) {
 	// Initialize an empty PageBlob
 	err := blobService.PutPageBlob(container, blob, int64(size))
 	c.Assert(err, IsNil)
-	defer blobService.DeleteBlob(container, blob)
+	defer func() {
+		err := blobService.DeleteBlob(container, blob)
+		c.Check(err, IsNil)
+	}()
 
 	// Add some blob metadata
 	blobMeta := map[string]string{
@@ -437,37 +538,59 @@ func (s *SnapshotSuite) TestSnapBlobCopy(c *C) {
 	}
 	err = blobService.SetBlobMetadata(container, blob, blobMeta)
 
-	// Update an existing Page Blob
+	// Write body to existing Page Blob
 	// N.B. size - 1 : start and stop are indices
 	err = blobService.PutPage(container, blob, 0, int64(size-1), storage.PageWriteTypeUpdate, body)
 	c.Assert(err, IsNil)
 
-	// N.B. - Keys may get camelCased
-	snapMeta := storage.Metadata{"snapMetaKey1": "snapMetaValue1", "snapMetaKey2": "snapMetaValue2"}
+	// Prepare some metadata - N.B. Keys get camelCased
+	snapid := time.Now().Format(time.RFC3339Nano)
+	snapMeta := storage.Metadata{
+		"snapid":       snapid,
+		"snapMetaKey1": "snapMetaValue1",
+	}
+
+	// Do snapshot
 	res, err := blobService.Snapshot(container, blob, snapMeta)
 	c.Assert(err, IsNil)
 	c.Assert(res.StatusCode, Equals, http.StatusCreated)
+
+	// Retrieve snapshot id from response header
 	snaptime := res.Headers.Get("X-Ms-Snapshot")
 	snap := blob + "?snapshot=" + snaptime
-	log.Printf("snap = %v", snap)
-	defer blobService.DeleteBlob(container, snap)
+	defer func() {
+		err := blobService.DeleteBlob(container, snap)
+		c.Check(err, IsNil)
+	}()
 	// === Create a snapshot :: End
 
-	// List the blob snapshot
+	// List blobs
 	resList, err := blobService.ListBlobs(container, storage.ListBlobsParameters{Include: "snapshots,metadata"})
 	c.Assert(err, IsNil)
 	jbytes, err := json.MarshalIndent(resList, "", "  ")
 	c.Assert(err, IsNil)
 	log.Printf("blobs (%d) = ...\n%v", len(resList.Blobs), string(jbytes))
 
+	// Get Blob metadata
+	metadata, err := blobService.GetBlobMetadata(container, snap)
+	c.Assert(err, IsNil)
+	c.Assert(metadata["snapid"], Equals, snapid)
+
 	// Define a destination blob
 	dstBlob := randString(20)
-	snapURL := blobService.GetBlobURL(container, snap)
 
+	// Copy the blob
+	snapURL := blobService.GetBlobURL(container, snap)
+	srcBlobURL := blobService.GetBlobURL(container, blob)
 	log.Printf("container = %v", container)
 	log.Printf("dstBlob   = %v", dstBlob)
 	log.Printf("snapURL   = %v", snapURL)
-	c.Assert(blobService.CopyBlob(container, dstBlob, blob), IsNil)
+	log.Printf("srcBlobURL   = %v", srcBlobURL)
+	err = blobService.CopyBlob(container, dstBlob, snapURL)
+	if err != nil {
+		log.Printf("Copy Failed xxxxxxxxx")
+	}
+	c.Assert(err, IsNil)
 	defer blobService.DeleteBlob(container, dstBlob)
 
 	// blobBody, err := blobService.GetBlob(container, dstBlob)

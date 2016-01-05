@@ -4,6 +4,7 @@ package storage
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -297,11 +298,39 @@ func (c Client) buildCanonicalizedString(verb string, headers map[string]string,
 	return canonicalizedString
 }
 
+func renderReq(req *http.Request) ([]byte, error) {
+	u := req.URL
+	//body, err := ioutil.ReadAll(req.Body)
+	body, err := "[...elided...]", error(nil)
+	if err != nil {
+		return nil, err
+	}
+	parts := struct {
+		Method        string
+		Scheme        string
+		Host          string
+		URI           string
+		Headers       map[string][]string
+		Query         url.Values
+		Body          string
+		ContentLength int64
+	}{
+		Method:        req.Method,
+		Scheme:        u.Scheme,
+		Host:          u.Host,
+		URI:           u.String(),
+		Headers:       map[string][]string(req.Header),
+		Query:         u.Query(),
+		Body:          string(body),
+		ContentLength: req.ContentLength,
+	}
+
+	str, err := json.MarshalIndent(parts, "", "  ")
+	return []byte(str), err
+}
+
 func (c Client) exec(verb, url string, headers map[string]string, body io.Reader) (*storageResponse, error) {
-	log.Printf("TRACE: url = %s", url)
-	log.Printf("TRACE: headers = %+v", headers)
 	authHeader, err := c.getAuthorizationHeader(verb, url, headers)
-	log.Printf("TRACE: authHeader = %+v", authHeader)
 	if err != nil {
 		return nil, err
 	}
@@ -325,11 +354,17 @@ func (c Client) exec(verb, url string, headers map[string]string, body io.Reader
 			return nil, err
 		}
 	}
-	log.Printf("TRACE: headers = %+v", headers)
 	for k, v := range headers {
 		req.Header.Add(k, v)
 	}
 	httpClient := http.Client{}
+
+	jbytes, err := renderReq(req)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("TRACE:\n%s", string(jbytes))
+
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err

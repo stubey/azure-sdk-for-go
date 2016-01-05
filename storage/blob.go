@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -436,7 +437,9 @@ func (b BlobStorageClient) BlobExists(container, name string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, parts.Name), parts.Query)
+	name = parts.Name
+	params := parts.Query
+	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), params)
 
 	headers := b.client.getStandardHeaders()
 	resp, err := b.client.exec(verb, uri, headers, nil)
@@ -457,7 +460,16 @@ func (b BlobStorageClient) GetBlobURL(container, name string) string {
 	if container == "" {
 		container = "$root"
 	}
-	return b.client.getEndpoint(blobServiceName, pathForBlob(container, name), url.Values{})
+
+	parts, err := ParseURLNameQuery(name)
+	if err != nil {
+		return ""
+	}
+	name = parts.Name
+	params := parts.Query
+	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), params)
+
+	return uri
 }
 
 // GetBlob returns a stream to read the blob. Caller must call Close() the
@@ -494,7 +506,14 @@ func (b BlobStorageClient) GetBlobRange(container, name, bytesRange string) (io.
 
 func (b BlobStorageClient) getBlobRange(container, name, bytesRange string) (*storageResponse, error) {
 	verb := "GET"
-	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), url.Values{})
+
+	parts, err := ParseURLNameQuery(name)
+	if err != nil {
+		return nil, err
+	}
+	name = parts.Name
+	params := parts.Query
+	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), params)
 
 	headers := b.client.getStandardHeaders()
 	if bytesRange != "" {
@@ -511,12 +530,14 @@ func (b BlobStorageClient) getBlobRange(container, name, bytesRange string) (*st
 // blob. See https://msdn.microsoft.com/en-us/library/azure/dd179394.aspx
 func (b BlobStorageClient) GetBlobProperties(container, name string) (*BlobProperties, error) {
 	verb := "HEAD"
-	// uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), url.Values{})
+
 	parts, err := ParseURLNameQuery(name)
 	if err != nil {
 		return nil, err
 	}
-	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, parts.Name), parts.Query)
+	name = parts.Name
+	params := parts.Query
+	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), params)
 
 	headers := b.client.getStandardHeaders()
 	resp, err := b.client.exec(verb, uri, headers, nil)
@@ -849,21 +870,26 @@ func (b BlobStorageClient) StartBlobCopy(container, name, sourceBlob string) (st
 }
 
 func (b BlobStorageClient) startBlobCopy(container, name, sourceBlob string) (string, error) {
-	// parts, err := ParseURLNameQuery(name)
-	// if err != nil {
-	// 	return "", err
-	// }
-	// name = parts.Name
-	// params := parts.Query
-	// uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), params)
+	verb := "PUT"
 
-	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), url.Values{})
+	parts, err := ParseURLNameQuery(name)
+	if err != nil {
+		return "", err
+	}
+	name = parts.Name
+	params := parts.Query
+	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), params)
 
 	headers := b.client.getStandardHeaders()
 	headers["Content-Length"] = "0"
 	headers["x-ms-copy-source"] = sourceBlob
 
-	resp, err := b.client.exec("PUT", uri, headers, nil)
+	log.Printf("container = %s", container)
+	log.Printf("name = %s", name)
+	log.Printf("sourceBlob = %s", sourceBlob)
+	log.Printf("uri = %s", uri)
+	log.Printf("headers[x-ms-copy-source] = %s", headers["x-ms-copy-source"])
+	resp, err := b.client.exec(verb, uri, headers, nil)
 	if err != nil {
 		return "", err
 	}
@@ -939,15 +965,13 @@ func (b BlobStorageClient) DeleteBlobIfExists(container, name string) (bool, err
 func (b BlobStorageClient) deleteBlob(container, name string) (*storageResponse, error) {
 	verb := "DELETE"
 
-	// parts, err := ParseURLNameQuery(name)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// name = parts.Name
-	// params := parts.Query
-	// uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), params)
-
-	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), url.Values{})
+	parts, err := ParseURLNameQuery(name)
+	if err != nil {
+		return nil, err
+	}
+	name = parts.Name
+	params := parts.Query
+	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), params)
 
 	headers := b.client.getStandardHeaders()
 
