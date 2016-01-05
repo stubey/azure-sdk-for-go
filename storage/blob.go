@@ -849,6 +849,14 @@ func (b BlobStorageClient) StartBlobCopy(container, name, sourceBlob string) (st
 }
 
 func (b BlobStorageClient) startBlobCopy(container, name, sourceBlob string) (string, error) {
+	// parts, err := ParseURLNameQuery(name)
+	// if err != nil {
+	// 	return "", err
+	// }
+	// name = parts.Name
+	// params := parts.Query
+	// uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), params)
+
 	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), url.Values{})
 
 	headers := b.client.getStandardHeaders()
@@ -930,7 +938,17 @@ func (b BlobStorageClient) DeleteBlobIfExists(container, name string) (bool, err
 
 func (b BlobStorageClient) deleteBlob(container, name string) (*storageResponse, error) {
 	verb := "DELETE"
+
+	// parts, err := ParseURLNameQuery(name)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// name = parts.Name
+	// params := parts.Query
+	// uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), params)
+
 	uri := b.client.getEndpoint(blobServiceName, pathForBlob(container, name), url.Values{})
+
 	headers := b.client.getStandardHeaders()
 
 	return b.client.exec(verb, uri, headers, nil)
