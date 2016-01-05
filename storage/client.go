@@ -122,6 +122,10 @@ func NewClient(accountName, accountKey, blobServiceBaseURL, apiVersion string, u
 	}, nil
 }
 
+func GetBlobServiceEnpoint(service string) string {
+	return getBaseURL(blobServiceName)
+}
+
 func (c Client) getBaseURL(service string) string {
 	scheme := "http"
 	if c.useHTTPS {
