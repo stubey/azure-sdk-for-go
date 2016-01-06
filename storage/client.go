@@ -36,6 +36,10 @@ const (
 	fileServiceName  = "file"
 )
 
+func BlobServiceName() string {
+	return blobServiceName
+}
+
 // Client is the object that needs to be constructed to perform
 // operations on the storage account.
 type Client struct {
@@ -120,10 +124,6 @@ func NewClient(accountName, accountKey, blobServiceBaseURL, apiVersion string, u
 		baseURL:     blobServiceBaseURL,
 		apiVersion:  apiVersion,
 	}, nil
-}
-
-func GetBlobServiceEnpoint(service string) string {
-	return getBaseURL(blobServiceName)
 }
 
 func (c Client) getBaseURL(service string) string {
