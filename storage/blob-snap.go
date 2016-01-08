@@ -97,6 +97,7 @@ func (b BlobStorageClient) Snapshot(container, name string, metaSnap Metadata) (
 	if err != nil {
 		return
 	}
+	// No response body!!!
 	defer resp.body.Close()
 
 	res = SnapshotResponse{
