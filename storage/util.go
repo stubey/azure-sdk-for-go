@@ -59,6 +59,10 @@ func xmlUnmarshal(body io.Reader, v interface{}) error {
 	if err != nil {
 		return err
 	}
+
+	// log.Printf("v = %T - %+v", v, v)
+	// log.Printf("data = ...\n%s", string(data))
+
 	return xml.Unmarshal(data, v)
 }
 

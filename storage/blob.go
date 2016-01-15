@@ -57,14 +57,13 @@ type Blob struct {
 	Name       string         `xml:"Name"`
 	Snapshot   string         `xml:"Snapshot"`
 	Properties BlobProperties `xml:"Properties"`
-	Metadata   BlobMetadata   `xml:"Metadata"`
 	// TODO (ahmetalpbalkan) Metadata
 }
 
-type BlobMetadata struct {
-	Snapid string `xml:"Snapid"`
-	Time   string `xml:"Time"`
-}
+// type BlobMetadata struct {
+// 	Snapid string `xml:"Snapid"`
+// 	Time   string `xml:"Time"`
+// }
 
 // BlobProperties contains various properties of a blob
 // returned in various endpoints like ListBlobs or GetBlobProperties.
