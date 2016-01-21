@@ -993,6 +993,13 @@ func pathForBlob(container, name string) string {
 //
 // See https://msdn.microsoft.com/en-us/library/azure/ee395415.aspx
 func (b BlobStorageClient) GetBlobSASURI(container, name string, expiry time.Time, permissions string) (string, error) {
+	// Remove any query parameters (like ?snapshot=) from name
+	parts, err := ParseURLNameQuery(name)
+	if err != nil {
+		return "", err
+	}
+	name = parts.Name
+
 	var (
 		signedPermissions = permissions
 		blobURL           = b.GetBlobURL(container, name)
@@ -1017,6 +1024,8 @@ func (b BlobStorageClient) GetBlobSASURI(container, name string, expiry time.Tim
 		"sp":  {signedPermissions},
 		"sig": {sig},
 	}
+	// Merge in any query parameters
+	sasParams = mergeParams(sasParams, parts.Query)
 
 	sasURL, err := url.Parse(blobURL)
 	if err != nil {
