@@ -69,6 +69,11 @@ func showRequest(name string, container string, verb string, uri string, headers
 
 func (b BlobStorageClient) Snapshot(container, name string, metaSnap Metadata) (res SnapshotResponse, err error) {
 
+	////////////////////////////
+	jbytes, _ := json.MarshalIndent(metaSnap, "", "  ")
+	log.Printf("metaSnap = ...\n%s", string(jbytes))
+	/////////////////////////////
+
 	verb := "PUT"
 	path := fmt.Sprintf("%s/%s", container, name)
 	// blob cmd
@@ -83,6 +88,12 @@ func (b BlobStorageClient) Snapshot(container, name string, metaSnap Metadata) (
 	if err != nil {
 		return
 	}
+
+	////////////////////////////
+	jbytes, _ = json.MarshalIndent(metaBlob, "", "  ")
+	log.Printf("metaBnap = ...\n%s", string(jbytes))
+	/////////////////////////////
+
 	for key, value := range metaBlob {
 		hv := fmt.Sprintf("x-ms-meta-%s", key)
 		headers[hv] = value
@@ -104,6 +115,15 @@ func (b BlobStorageClient) Snapshot(container, name string, metaSnap Metadata) (
 		StatusCode: resp.statusCode,
 		Headers:    resp.headers,
 	}
+
+	//////////////////////////////////////////////
+	metaBlob, err = b.client.GetBlobService().GetBlobMetadata(container, name)
+	if err != nil {
+		return
+	}
+	jbytes, _ = json.MarshalIndent(metaBlob, "", "  ")
+	log.Printf("metaBnap = ...\n%s", string(jbytes))
+	//////////////////////////////////////////////
 
 	return
 }
