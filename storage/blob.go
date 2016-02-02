@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -826,6 +827,15 @@ func (b BlobStorageClient) PutPage(container, name string, startByte, endByte in
 	return checkRespCode(resp.statusCode, []int{http.StatusCreated})
 }
 
+func LogTrace(msgs ...string) {
+	msg := strings.Join(msgs, " ")
+	pc := make([]uintptr, 10) // at least 1 entry needed
+	runtime.Callers(2, pc)
+	f := runtime.FuncForPC(pc[0])
+	file, line := f.FileLine(pc[0])
+	log.Printf("TRACER: %s - %s:%d %s\n", msg, file, line, f.Name())
+}
+
 // GetPageRanges returns the list of valid page ranges for a page blob.
 //
 // See https://msdn.microsoft.com/en-us/library/azure/ee691973.aspx
@@ -859,7 +869,6 @@ func (b BlobStorageClient) CopyBlob(container, name, sourceBlob string) error {
 	if err != nil {
 		return err
 	}
-
 	return b.waitForBlobCopy(container, name, copyID)
 }
 
@@ -883,11 +892,6 @@ func (b BlobStorageClient) startBlobCopy(container, name, sourceBlob string) (st
 	headers["Content-Length"] = "0"
 	headers["x-ms-copy-source"] = sourceBlob
 
-	log.Printf("container = %s", container)
-	log.Printf("name = %s", name)
-	log.Printf("sourceBlob = %s", sourceBlob)
-	log.Printf("uri = %s", uri)
-	log.Printf("headers[x-ms-copy-source] = %s", headers["x-ms-copy-source"])
 	resp, err := b.client.exec(verb, uri, headers, nil)
 	if err != nil {
 		return "", err
@@ -923,14 +927,20 @@ func (b BlobStorageClient) waitForBlobCopy(container, name, copyID string) error
 
 		switch props.CopyStatus {
 		case blobCopyStatusSuccess:
+			LogTrace("blobCopyStatusSuccess: ")
 			return nil
 		case blobCopyStatusPending:
+			LogTrace("Retry blobCopyStatusPending: ", name, props.CopyProgress)
+			time.Sleep(5 * time.Second)
 			continue
 		case blobCopyStatusAborted:
+			LogTrace("blobCopyStatusAborted: ")
 			return errBlobCopyAborted
 		case blobCopyStatusFailed:
+			LogTrace("blobCopyStatusFailed: ")
 			return fmt.Errorf("storage: blob copy failed. Id=%s Description=%s", props.CopyID, props.CopyStatusDescription)
 		default:
+			LogTrace("blobCopyStatusUnknown: ")
 			return fmt.Errorf("storage: unhandled blob copy status: '%s'", props.CopyStatus)
 		}
 	}
