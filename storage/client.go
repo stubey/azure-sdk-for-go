@@ -374,7 +374,6 @@ func (c Client) exec(verb, url string, headers map[string]string, body io.Reader
 		log.Printf("TRACE: err = %+v", err)
 		return nil, err
 	}
-	log.Printf("TRACE:")
 	statusCode := resp.StatusCode
 	if statusCode >= 400 && statusCode <= 505 {
 		var respBody []byte

@@ -914,7 +914,37 @@ func (b BlobStorageClient) WaitForBlobCopy(container, name, copyID string) error
 	return b.waitForBlobCopy(container, name, copyID)
 }
 
+type BlobCopyRateResultType struct {
+	StartTime  time.Time
+	NowTime    time.Time
+	BytesSoFar float64
+	BytesTotal float64
+	RateBps    float64
+	Percent    float64
+	TtcSecs    float64
+}
+
+func CalcBlobDataCopyRate(copyProgress string, startTime time.Time) BlobCopyRateResultType {
+	nowTime := time.Now()
+	progress := strings.Split(copyProgress, "/")
+	sofar, _ := strconv.ParseFloat(progress[0], 64)
+	total, _ := strconv.ParseFloat(progress[1], 64)
+	RateBps := sofar / nowTime.Sub(startTime).Seconds()
+
+	result := BlobCopyRateResultType{
+		StartTime:  startTime,
+		NowTime:    nowTime,
+		BytesSoFar: sofar,
+		BytesTotal: total,
+		RateBps:    RateBps,
+		Percent:    (sofar / total) * 100,
+		TtcSecs:    (total - sofar) / RateBps,
+	}
+
+	return result
+}
 func (b BlobStorageClient) waitForBlobCopy(container, name, copyID string) error {
+	copyStartTime := time.Now()
 	for {
 		props, err := b.GetBlobProperties(container, name)
 		if err != nil {
@@ -925,22 +955,35 @@ func (b BlobStorageClient) waitForBlobCopy(container, name, copyID string) error
 			return errBlobCopyIDMismatch
 		}
 
+		copyRateMBps, copyPercent := CalcBlobDataCopyRateMBps(props.CopyProgress, copyStartTime)
+		log.Printf("CopyStartTime         = %v", copyStartTime)
+		log.Printf("CopySource            = %s", props.CopySource)
+		log.Printf("CopyID                = %s", props.CopyID)
+		log.Printf("CopyStatus            = %s", props.CopyStatus)
+		log.Printf("CopyStatusDescription = %s", props.CopyStatusDescription)
+		log.Printf("CopyProgress          = %s", props.CopyProgress)
+		log.Printf("CopyCompletionTime    = %s", props.CopyCompletionTime)
+		if time.Now().Sub(startTime) > 5*time.Second {
+			fmt.Printf("StartTime   = %v\n", r.StartTime)
+			fmt.Printf("NowTime     = %v\n", r.NowTime)
+			fmt.Printf("BytesSofar  = %.0f MB\n", r.BytesSoFar/(1024*1024))
+			fmt.Printf("BytesTotal  = %.0f MB\n", r.BytesTotal/(1024*1024))
+			fmt.Printf("CopyPercent = %.0f%%\n", r.Percent)
+			fmt.Printf("CopyRate    = %.0f MB/s\n", r.RateBps/(1000*1000))
+			fmt.Printf("ttcMins     = %.2f\n", r.TtcSecs/60)
+		}
+
 		switch props.CopyStatus {
 		case blobCopyStatusSuccess:
-			LogTrace("blobCopyStatusSuccess: ")
 			return nil
 		case blobCopyStatusPending:
-			LogTrace("Retry blobCopyStatusPending: ", name, props.CopyProgress)
-			time.Sleep(5 * time.Second)
+			time.Sleep(10 * time.Second)
 			continue
 		case blobCopyStatusAborted:
-			LogTrace("blobCopyStatusAborted: ")
 			return errBlobCopyAborted
 		case blobCopyStatusFailed:
-			LogTrace("blobCopyStatusFailed: ")
 			return fmt.Errorf("storage: blob copy failed. Id=%s Description=%s", props.CopyID, props.CopyStatusDescription)
 		default:
-			LogTrace("blobCopyStatusUnknown: ")
 			return fmt.Errorf("storage: unhandled blob copy status: '%s'", props.CopyStatus)
 		}
 	}
