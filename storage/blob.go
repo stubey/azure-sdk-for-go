@@ -196,6 +196,14 @@ const (
 	blobCopyStatusFailed  = "failed"
 )
 
+// Exported versions
+const (
+	BlobCopyStatusPending = blobCopyStatusPending
+	BlobCopyStatusSuccess = blobCopyStatusSuccess
+	BlobCopyStatusAborted = blobCopyStatusAborted
+	BlobCopyStatusFailed  = blobCopyStatusFailed
+)
+
 // BlockListType is used to filter out types of blocks in a Get Blocks List call
 // for a block blob.
 //
@@ -943,6 +951,7 @@ func CalcBlobDataCopyRate(copyProgress string, startTime time.Time) BlobCopyRate
 
 	return result
 }
+
 func (b BlobStorageClient) waitForBlobCopy(container, name, copyID string) error {
 	copyStartTime := time.Now()
 	for {
@@ -955,15 +964,16 @@ func (b BlobStorageClient) waitForBlobCopy(container, name, copyID string) error
 			return errBlobCopyIDMismatch
 		}
 
-		copyRateMBps, copyPercent := CalcBlobDataCopyRateMBps(props.CopyProgress, copyStartTime)
-		log.Printf("CopyStartTime         = %v", copyStartTime)
-		log.Printf("CopySource            = %s", props.CopySource)
-		log.Printf("CopyID                = %s", props.CopyID)
-		log.Printf("CopyStatus            = %s", props.CopyStatus)
-		log.Printf("CopyStatusDescription = %s", props.CopyStatusDescription)
-		log.Printf("CopyProgress          = %s", props.CopyProgress)
-		log.Printf("CopyCompletionTime    = %s", props.CopyCompletionTime)
-		if time.Now().Sub(startTime) > 5*time.Second {
+		if time.Now().Sub(copyStartTime) > 15*time.Second {
+			log.Printf("CopyStartTime         = %v", copyStartTime)
+			log.Printf("CopySource            = %s", props.CopySource)
+			log.Printf("CopyID                = %s", props.CopyID)
+			log.Printf("CopyStatus            = %s", props.CopyStatus)
+			log.Printf("CopyStatusDescription = %s", props.CopyStatusDescription)
+			log.Printf("CopyProgress          = %s", props.CopyProgress)
+			log.Printf("CopyCompletionTime    = %s", props.CopyCompletionTime)
+
+			r := CalcBlobDataCopyRate(props.CopyProgress, copyStartTime)
 			fmt.Printf("StartTime   = %v\n", r.StartTime)
 			fmt.Printf("NowTime     = %v\n", r.NowTime)
 			fmt.Printf("BytesSofar  = %.0f MB\n", r.BytesSoFar/(1024*1024))
