@@ -55,7 +55,7 @@ type SnapshotResponse struct {
 	Headers    http.Header
 }
 
-func showRequest(name string, container string, verb string, uri string, headers map[string]string) (string, error) {
+func renderRequest(name string, container string, verb string, uri string, headers map[string]string) string {
 	s := struct {
 		Name      string
 		Container string
@@ -64,51 +64,49 @@ func showRequest(name string, container string, verb string, uri string, headers
 		Headers   map[string]string
 	}{name, container, verb, uri, headers}
 	jbytes, err := json.MarshalIndent(s, "", "  ")
-	return string(jbytes), err
+	if err != nil {
+		return "unable to render request"
+	}
+	return string(jbytes)
 }
 
 func (b BlobStorageClient) Snapshot(container, name string, metaSnap Metadata) (res SnapshotResponse, err error) {
+	debug := false
 
-	////////////////////////////
-	jbytes, _ := json.MarshalIndent(metaSnap, "", "  ")
-	log.Printf("metaSnap = ...\n%s", string(jbytes))
-	/////////////////////////////
+	if debug == true {
+		jbytes, _ := json.MarshalIndent(metaSnap, "", "  ")
+		log.Printf("metaSnap headers to add = ...\n%s", string(jbytes))
+	}
 
 	verb := "PUT"
 	path := fmt.Sprintf("%s/%s", container, name)
-	// blob cmd
 	urlValues := url.Values{"comp": {"snapshot"}}
 
 	uri := b.client.getEndpoint(blobServiceName, path, urlValues)
 	headers := b.client.getStandardHeaders()
 	headers["Content-Length"] = fmt.Sprintf("%v", 0)
 
-	// Merge original blob metadata with snap metadata
-	metaBlob, err := b.client.GetBlobService().GetBlobMetadata(container, name)
-	if err != nil {
-		return
+	if debug == true {
+		log.Printf("base request = %s", renderRequest(name, container, verb, uri, headers))
+		//
 	}
 
-	////////////////////////////
-	jbytes, _ = json.MarshalIndent(metaBlob, "", "  ")
-	log.Printf("metaBnap = ...\n%s", string(jbytes))
-	/////////////////////////////
-
-	for key, value := range metaBlob {
-		hv := fmt.Sprintf("x-ms-meta-%s", key)
-		headers[hv] = value
-	}
+	// Add snapshot tags
 	for key, value := range metaSnap {
 		hv := fmt.Sprintf("x-ms-meta-%s", key)
+		//log.Printf("metasnap headers[%s] = %s", hv, value)
 		headers[hv] = value
 	}
 
-	//req, _ := showRequest(name, container, verb, uri, headers)
+	if debug == true {
+		log.Printf("snapshot request = %s", renderRequest(name, container, verb, uri, headers))
+		//
+	}
+
 	resp, err := b.client.exec(verb, uri, headers, nil)
 	if err != nil {
-		return
+		return res, err
 	}
-	// No response body!!!
 	defer resp.body.Close()
 
 	res = SnapshotResponse{
@@ -116,14 +114,23 @@ func (b BlobStorageClient) Snapshot(container, name string, metaSnap Metadata) (
 		Headers:    resp.headers,
 	}
 
-	//////////////////////////////////////////////
-	metaBlob, err = b.client.GetBlobService().GetBlobMetadata(container, name)
-	if err != nil {
-		return
+	if debug == true {
+		metaBlob, err := b.client.GetBlobService().GetBlobMetadata(container, name)
+		if err != nil {
+			return res, err
+		}
+		jbytes, _ := json.MarshalIndent(metaBlob, "", "  ")
+		log.Printf("after snapshot: basename metadata = ...\n%s", string(jbytes))
+
+		snapname := name + "?snapshot=" + res.Headers.Get("X-Ms-Snapshot")
+		log.Printf("snapname = %s", snapname)
+		metaBlob, err = b.client.GetBlobService().GetBlobMetadata(container, snapname)
+		if err != nil {
+			return res, err
+		}
+		jbytes, _ = json.MarshalIndent(metaBlob, "", "  ")
+		log.Printf("after snapshot: snapshot metadata = ...\n%s", string(jbytes))
 	}
-	jbytes, _ = json.MarshalIndent(metaBlob, "", "  ")
-	log.Printf("metaBnap = ...\n%s", string(jbytes))
-	//////////////////////////////////////////////
 
 	return
 }
