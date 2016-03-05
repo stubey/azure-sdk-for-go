@@ -872,12 +872,16 @@ func (b BlobStorageClient) GetPageRanges(container, name string) (GetPageRangesR
 // this helper method works faster on smaller files.
 //
 // See https://msdn.microsoft.com/en-us/library/azure/dd894037.aspx
-func (b BlobStorageClient) CopyBlob(container, name, sourceBlob string) error {
+func (b BlobStorageClient) CopyBlobSync(container, name, sourceBlob string) error {
 	copyID, err := b.startBlobCopy(container, name, sourceBlob)
 	if err != nil {
 		return err
 	}
 	return b.waitForBlobCopy(container, name, copyID)
+}
+
+func (b BlobStorageClient) CopyBlobAsync(container, name, sourceBlob string) (string, error) {
+	return b.startBlobCopy(container, name, sourceBlob)
 }
 
 // Export startBlobCopy()
