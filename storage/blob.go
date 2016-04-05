@@ -936,14 +936,17 @@ type BlobCopyRateResultType struct {
 	TtcSecs    float64
 }
 
-func CalcBlobDataCopyRate(copyProgress string, startTime time.Time) BlobCopyRateResultType {
+func CalcBlobDataCopyRate(copyProgress string, startTime time.Time) (result BlobCopyRateResultType, err error) {
 	nowTime := time.Now()
 	progress := strings.Split(copyProgress, "/")
+	if len(progress) != 2 {
+		return result, fmt.Errorf("invalid copy rate progress string")
+	}
 	sofar, _ := strconv.ParseFloat(progress[0], 64)
 	total, _ := strconv.ParseFloat(progress[1], 64)
 	RateBps := sofar / nowTime.Sub(startTime).Seconds()
 
-	result := BlobCopyRateResultType{
+	result = BlobCopyRateResultType{
 		StartTime:  startTime,
 		NowTime:    nowTime,
 		BytesSoFar: sofar,
@@ -953,7 +956,7 @@ func CalcBlobDataCopyRate(copyProgress string, startTime time.Time) BlobCopyRate
 		TtcSecs:    (total - sofar) / RateBps,
 	}
 
-	return result
+	return result, nil
 }
 
 func (b BlobStorageClient) waitForBlobCopy(container, name, copyID string) error {
@@ -977,14 +980,16 @@ func (b BlobStorageClient) waitForBlobCopy(container, name, copyID string) error
 			log.Printf("CopyProgress          = %s", props.CopyProgress)
 			log.Printf("CopyCompletionTime    = %s", props.CopyCompletionTime)
 
-			r := CalcBlobDataCopyRate(props.CopyProgress, copyStartTime)
-			fmt.Printf("StartTime   = %v\n", r.StartTime)
-			fmt.Printf("NowTime     = %v\n", r.NowTime)
-			fmt.Printf("BytesSofar  = %.0f MB\n", r.BytesSoFar/(1024*1024))
-			fmt.Printf("BytesTotal  = %.0f MB\n", r.BytesTotal/(1024*1024))
-			fmt.Printf("CopyPercent = %.0f%%\n", r.Percent)
-			fmt.Printf("CopyRate    = %.0f MB/s\n", r.RateBps/(1000*1000))
-			fmt.Printf("ttcMins     = %.2f\n", r.TtcSecs/60)
+			r, err := CalcBlobDataCopyRate(props.CopyProgress, copyStartTime)
+			if err != nil {
+				log.Printf("StartTime   = %v\n", r.StartTime)
+				log.Printf("NowTime     = %v\n", r.NowTime)
+				log.Printf("BytesSofar  = %.0f MB\n", r.BytesSoFar/(1024*1024))
+				log.Printf("BytesTotal  = %.0f MB\n", r.BytesTotal/(1024*1024))
+				log.Printf("CopyPercent = %.0f%%\n", r.Percent)
+				log.Printf("CopyRate    = %.0f MB/s\n", r.RateBps/(1000*1000))
+				log.Printf("ttcMins     = %.2f\n", r.TtcSecs/60)
+			}
 		}
 
 		switch props.CopyStatus {
