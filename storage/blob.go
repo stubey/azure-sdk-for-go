@@ -996,7 +996,7 @@ func (b BlobStorageClient) waitForBlobCopy(container, name, copyID string) error
 		case blobCopyStatusSuccess:
 			return nil
 		case blobCopyStatusPending:
-			time.Sleep(10 * time.Second)
+			time.Sleep(60 * time.Second)
 			continue
 		case blobCopyStatusAborted:
 			return errBlobCopyAborted
