@@ -12,7 +12,7 @@ import (
 
 	"azure-sdk-for-go/storage"
 
-	. "azure-sdk-for-go/Godeps/_workspace/src/gopkg.in/check.v1"
+	. "gopkg.in/check.v1"
 )
 
 // go test -v azure-sdk-for-go/storage -check.vv -check.f SnapshotSuite.TestSnapshot
