@@ -219,9 +219,12 @@ func (client GroupsClient) DeletePreparer(resourceGroupName string, cancel <-cha
 // DeleteSender sends the Delete request. The method will close the
 // http.Response Body if it receives an error.
 func (client GroupsClient) DeleteSender(req *http.Request) (*http.Response, error) {
+	// return autorest.SendWithSender(client,
+	// 	req,
+	// 	azure.DoPollForAsynchronous(client.PollingDelay))
 	return autorest.SendWithSender(client,
 		req,
-		azure.DoPollForAsynchronous(client.PollingDelay))
+	)
 }
 
 // DeleteResponder handles the response to the Delete request. The method always

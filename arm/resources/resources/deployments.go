@@ -222,9 +222,10 @@ func (client DeploymentsClient) CreateOrUpdatePreparer(resourceGroupName string,
 // CreateOrUpdateSender sends the CreateOrUpdate request. The method will close the
 // http.Response Body if it receives an error.
 func (client DeploymentsClient) CreateOrUpdateSender(req *http.Request) (*http.Response, error) {
-	return autorest.SendWithSender(client,
-		req,
-		azure.DoPollForAsynchronous(client.PollingDelay))
+	// return autorest.SendWithSender(client,
+	// 	req,
+	// 	azure.DoPollForAsynchronous(client.PollingDelay))
+	return autorest.SendWithSender(client, req)
 }
 
 // CreateOrUpdateResponder handles the response to the CreateOrUpdate request. The method always
