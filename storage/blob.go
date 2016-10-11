@@ -986,6 +986,9 @@ func (b BlobStorageClient) startBlobCopy(container, name, sourceBlob string) (st
 	if copyID == "" {
 		return "", errors.New("Got empty copy id header")
 	}
+
+	log.Printf("============== copyID = %T - %v", copyID, copyID)
+
 	return copyID, nil
 }
 
@@ -1117,6 +1120,9 @@ func (b BlobStorageClient) deleteBlob(container, name string, extraHeaders map[s
 		headers[k] = v
 	}
 
+	log.Printf("TRACE: DeleteBlob verb    = %+v", verb)
+	log.Printf("TRACE: DeleteBlob uri     = %+v", uri)
+	log.Printf("TRACE: DeleteBlob headers = %+v", headers)
 	return b.client.exec(verb, uri, headers, nil)
 }
 

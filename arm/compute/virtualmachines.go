@@ -237,8 +237,9 @@ func (client VirtualMachinesClient) DeallocatePreparer(resourceGroupName string,
 // http.Response Body if it receives an error.
 func (client VirtualMachinesClient) DeallocateSender(req *http.Request) (*http.Response, error) {
 	return autorest.SendWithSender(client,
-		req,
-		azure.DoPollForAsynchronous(client.PollingDelay))
+		// req,
+		// azure.DoPollForAsynchronous(client.PollingDelay))
+		req)
 }
 
 // DeallocateResponder handles the response to the Deallocate request. The method always
@@ -899,9 +900,11 @@ func (client VirtualMachinesClient) StartPreparer(resourceGroupName string, vmNa
 // StartSender sends the Start request. The method will close the
 // http.Response Body if it receives an error.
 func (client VirtualMachinesClient) StartSender(req *http.Request) (*http.Response, error) {
+	// return autorest.SendWithSender(client,
+	// 	req,
+	// 	azure.DoPollForAsynchronous(client.PollingDelay))
 	return autorest.SendWithSender(client,
-		req,
-		azure.DoPollForAsynchronous(client.PollingDelay))
+		req)
 }
 
 // StartResponder handles the response to the Start request. The method always
