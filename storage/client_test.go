@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/base64"
+	"net/http"
 	"net/url"
 	"os"
 	"testing"
@@ -31,6 +32,27 @@ func getBasicClient(c *chk.C) Client {
 	return cli
 }
 
+//getEmulatorClient returns a test client for Azure Storeage Emulator
+func getEmulatorClient(c *chk.C) Client {
+	cli, err := NewBasicClient(StorageEmulatorAccountName, "")
+	c.Assert(err, chk.IsNil)
+	return cli
+}
+
+func (s *StorageClientSuite) TestNewEmulatorClient(c *chk.C) {
+	cli, err := NewBasicClient(StorageEmulatorAccountName, "")
+	c.Assert(err, chk.IsNil)
+	c.Assert(cli.accountName, chk.Equals, StorageEmulatorAccountName)
+	expectedKey, err := base64.StdEncoding.DecodeString(StorageEmulatorAccountKey)
+	c.Assert(err, chk.IsNil)
+	c.Assert(cli.accountKey, chk.DeepEquals, expectedKey)
+}
+
+func (s *StorageClientSuite) TestMalformedKeyError(c *chk.C) {
+	_, err := NewBasicClient("foo", "malformed")
+	c.Assert(err, chk.ErrorMatches, "azure: malformed storage account key: .*")
+}
+
 func (s *StorageClientSuite) TestGetBaseURL_Basic_Https(c *chk.C) {
 	cli, err := NewBasicClient("foo", "YmFy")
 	c.Assert(err, chk.IsNil)
@@ -45,6 +67,22 @@ func (s *StorageClientSuite) TestGetBaseURL_Custom_NoHttps(c *chk.C) {
 	c.Assert(err, chk.IsNil)
 	c.Assert(cli.apiVersion, chk.Equals, apiVersion)
 	c.Assert(cli.getBaseURL("table"), chk.Equals, "http://foo.table.core.chinacloudapi.cn")
+}
+
+func (s *StorageClientSuite) TestGetBaseURL_StorageEmulator(c *chk.C) {
+	cli, err := NewBasicClient(StorageEmulatorAccountName, StorageEmulatorAccountKey)
+	c.Assert(err, chk.IsNil)
+
+	type test struct{ service, expected string }
+	tests := []test{
+		{blobServiceName, "http://127.0.0.1:10000"},
+		{tableServiceName, "http://127.0.0.1:10002"},
+		{queueServiceName, "http://127.0.0.1:10001"},
+	}
+	for _, i := range tests {
+		baseURL := cli.getBaseURL(i.service)
+		c.Assert(baseURL, chk.Equals, i.expected)
+	}
 }
 
 func (s *StorageClientSuite) TestGetEndpoint_None(c *chk.C) {
@@ -81,6 +119,22 @@ func (s *StorageClientSuite) TestGetEndpoint_Mixed(c *chk.C) {
 	c.Assert(output, chk.Equals, "https://foo.blob.core.windows.net/path?a=b&c=d")
 }
 
+func (s *StorageClientSuite) TestGetEndpoint_StorageEmulator(c *chk.C) {
+	cli, err := NewBasicClient(StorageEmulatorAccountName, StorageEmulatorAccountKey)
+	c.Assert(err, chk.IsNil)
+
+	type test struct{ service, expected string }
+	tests := []test{
+		{blobServiceName, "http://127.0.0.1:10000/devstoreaccount1/"},
+		{tableServiceName, "http://127.0.0.1:10002/devstoreaccount1/"},
+		{queueServiceName, "http://127.0.0.1:10001/devstoreaccount1/"},
+	}
+	for _, i := range tests {
+		endpoint := cli.getEndpoint(i.service, "", url.Values{})
+		c.Assert(endpoint, chk.Equals, i.expected)
+	}
+}
+
 func (s *StorageClientSuite) Test_getStandardHeaders(c *chk.C) {
 	cli, err := NewBasicClient("foo", "YmFy")
 	c.Assert(err, chk.IsNil)
@@ -93,6 +147,25 @@ func (s *StorageClientSuite) Test_getStandardHeaders(c *chk.C) {
 	}
 }
 
+func (s *StorageClientSuite) Test_buildCanonicalizedResourceTable(c *chk.C) {
+	cli, err := NewBasicClient("foo", "YmFy")
+	c.Assert(err, chk.IsNil)
+
+	type test struct{ url, expected string }
+	tests := []test{
+		{"https://foo.table.core.windows.net/mytable", "/foo/mytable"},
+		{"https://foo.table.core.windows.net/mytable?comp=acl", "/foo/mytable?comp=acl"},
+		{"https://foo.table.core.windows.net/mytable?comp=acl&timeout=10", "/foo/mytable?comp=acl"},
+		{"https://foo.table.core.windows.net/mytable(PartitionKey='pkey',RowKey='rowkey%3D')", "/foo/mytable(PartitionKey='pkey',RowKey='rowkey%3D')"},
+	}
+
+	for _, i := range tests {
+		out, err := cli.buildCanonicalizedResourceTable(i.url)
+		c.Assert(err, chk.IsNil)
+		c.Assert(out, chk.Equals, i.expected)
+	}
+}
+
 func (s *StorageClientSuite) Test_buildCanonicalizedResource(c *chk.C) {
 	cli, err := NewBasicClient("foo", "YmFy")
 	c.Assert(err, chk.IsNil)
@@ -102,6 +175,11 @@ func (s *StorageClientSuite) Test_buildCanonicalizedResource(c *chk.C) {
 		{"https://foo.blob.core.windows.net/path?a=b&c=d", "/foo/path\na:b\nc:d"},
 		{"https://foo.blob.core.windows.net/?comp=list", "/foo/\ncomp:list"},
 		{"https://foo.blob.core.windows.net/cnt/blob", "/foo/cnt/blob"},
+		{"https://foo.blob.core.windows.net/cnt/bl ob", "/foo/cnt/bl%20ob"},
+		{"https://foo.blob.core.windows.net/c nt/blob", "/foo/c%20nt/blob"},
+		{"https://foo.blob.core.windows.net/cnt/blob%3F%23%5B%5D%21$&%27%28%29%2A blob", "/foo/cnt/blob%3F%23%5B%5D%21$&%27%28%29%2A%20blob"},
+		{"https://foo.blob.core.windows.net/cnt/blob-._~:,@;+=blob", "/foo/cnt/blob-._~:,@;+=blob"},
+		{"https://foo.blob.core.windows.net/c nt/blob-._~:%3F%23%5B%5D@%21$&%27%28%29%2A,;+=/blob", "/foo/c%20nt/blob-._~:%3F%23%5B%5D@%21$&%27%28%29%2A,;+=/blob"},
 	}
 
 	for _, i := range tests {
@@ -143,6 +221,22 @@ func (s *StorageClientSuite) TestReturnsStorageServiceError(c *chk.C) {
 	c.Assert(v.StatusCode, chk.Equals, 404)
 	c.Assert(v.Code, chk.Equals, "ContainerNotFound")
 	c.Assert(v.Code, chk.Not(chk.Equals), "")
+	c.Assert(v.RequestID, chk.Not(chk.Equals), "")
+}
+
+func (s *StorageClientSuite) TestReturnsStorageServiceError_withoutResponseBody(c *chk.C) {
+	// HEAD on non-existing blob
+	_, err := getBlobClient(c).GetBlobProperties("non-existing-blob", "non-existing-container")
+
+	c.Assert(err, chk.NotNil)
+	c.Assert(err, chk.FitsTypeOf, AzureStorageServiceError{})
+
+	v, ok := err.(AzureStorageServiceError)
+	c.Check(ok, chk.Equals, true)
+	c.Assert(v.StatusCode, chk.Equals, http.StatusNotFound)
+	c.Assert(v.Code, chk.Equals, "404 The specified container does not exist.")
+	c.Assert(v.RequestID, chk.Not(chk.Equals), "")
+	c.Assert(v.Message, chk.Equals, "no response body was available for error status code")
 }
 
 func (s *StorageClientSuite) Test_createAuthorizationHeader(c *chk.C) {

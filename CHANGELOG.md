@@ -2,6 +2,169 @@
 
 -----
 
+## `v7.0.0-beta`
+
+| api                                 | version            | note                               |
+|:------------------------------------|:-------------------|:-----------------------------------|
+| arm/analysisservices                | 2016-05-16         | new                                |
+| arm/cdn                             | 2016-10-02         | update to latest swagger           |
+| arm/commerce                        | 2015-06-01-preview | new                                |
+| arm/containerservice                | 2016-09-30         | update to latest swagger           |
+| arm/containerregistry               | 2016-06-27-preview | new                                |
+| arm/datalake-analytics/account      | 2016-11-01         | update to latest swagger           |
+| arm/datalake-store/account          | 2016-11-01         | update to latest swagger           |
+| arm/datalake-store/filesystem       | 2016-11-01         | update to latest swagger           |
+| arm/documentdb                      | 2015-04-08         | new                                |
+| arm/machinelearning/commitmentplans | 2016-05-01-preview | new                                |
+| arm/recoveryservices                | 2016-06-01         | new                                |
+| arm/resources/subscriptions         | 2016-06-01         | new                                |
+| arm/search                          | 2015-08-19         | update to latest swagger           |
+| arm/sql                             | 2014-04-01         | previous version was deleted       |
+
+### Storage
+- Can now update messages in storage queues.
+- Added support for blob snapshots and aborting blob copy operations.
+- Added support for getting and setting ACLs on containers.
+- Added various APIs for file and directory manipulation.
+
+### Support for the following swagger extensions was added to the Go generator which affected codegen.
+- x-ms-client-flatten
+- x-ms-paramater-location
+
+## `v6.0.0-beta`
+
+| api                            | version            | note                               |
+|:-------------------------------|:-------------------|:-----------------------------------|
+| arm/authorization              | no change          | code refactoring                   |
+| arm/batch                      | no change          | code refactoring                   |
+| arm/compute                    | no change          | code refactoring                   |
+| arm/containerservice           | 2016-03-30         | return                             |
+| arm/datalake-analytics/account | 2015-10-01-preview | new                                |
+| arm/datalake-store/filesystem  | no change          | moved to datalake-store/filesystem |
+| arm/eventhub                   | no change          | code refactoring                   |
+| arm/intune                     | no change          | code refactoring                   |
+| arm/iothub                     | no change          | code refactoring                   |
+| arm/keyvault                   | no change          | code refactoring                   |
+| arm/mediaservices              | no change          | code refactoring                   |
+| arm/network                    | no change          | code refactoring                   |
+| arm/notificationhubs           | no change          | code refactoring                   |
+| arm/redis                      | no change          | code refactoring                   |
+| arm/resources/resources        | no change          | code refactoring                   |
+| arm/resources/links            | 2016-09-01         | new                                |
+| arm/resources/locks            | 2016-09-01         | updated                            |
+| arm/resources/policy           | no change          | code refactoring                   |
+| arm/resources/resources        | 2016-09-01         | updated                            |
+| arm/servermanagement           | 2016-07-01-preview | updated                            |
+| arm/web                        | no change          | code refactoring                   |
+
+- storage: Added blob lease functionality and tests
+
+## `v5.0.0-beta`
+
+| api                           | version             | note             |
+|:------------------------------|:--------------------|:-----------------|
+| arm/network                   | 2016-09-01          | updated          |
+| arm/servermanagement          | 2015-07-01-preview  | new              |
+| arm/eventhub                  | 2015-08-01          | new              |
+| arm/containerservice          | --                  | removed          |
+| arm/resources/subscriptions   | no change           | code refactoring |
+| arm/resources/features        | no change           | code refactoring |
+| arm/resources/resources       | no change           | code refactoring |
+| arm/datalake-store/accounts   | no change           | code refactoring |
+| arm/datalake-store/filesystem | no change           | code refactoring |
+| arm/notificationhubs          | no change           | code refactoring |
+| arm/redis                     | no change           | code refactoring |
+
+- storage: Add more file storage share operations.
+- azure-rest-api-specs/commit/b8cdc2c50a0872fc0039f20c2b6b33aa0c2af4bf
+- Uses go-autorest v7.2.1
+
+## `v4.0.0-beta`
+
+- arm/logic: breaking change in package logic.
+- arm: parameter validation code added in all arm packages.
+- Uses go-autorest v7.2.0.
+
+
+## `v3.2.0-beta`
+
+| api                         | version             | note      |
+|:----------------------------|:--------------------|:----------|
+| arm/mediaservices           | 2015-10-01          | new       |
+| arm/keyvault                | 2015-06-01          | new       |
+| arm/iothub                  | 2016-02-03          | new       |
+| arm/datalake-store          | 2015-12-01          | new       |
+| arm/network                 | 2016-06-01          | updated   |
+| arm/resources/resources     | 2016-07-01          | updated   |
+| arm/resources/policy        | 2016-04-01          | updated   |
+| arm/servicebus              | 2015-08-01          | updated   |
+
+- arm: uses go-autorest version v7.1.0.
+- storage: fix for operating on blobs names containing special characters.
+- storage: add SetBlobProperties(), update BlobProperties response fields.
+- storage: make storage client work correctly with read-only secondary account.
+- storage: add Azure Storage Emulator support.
+
+
+## `v3.1.0-beta`
+
+- Added a new arm/compute/containerservice (2016-03-30) package
+- Reintroduced NewxxClientWithBaseURI method.
+- Uses go-autorest version - v7.0.7.
+
+
+## `v3.0.0-beta`
+
+This release brings the Go SDK ARM packages up-to-date with Azure ARM Swagger files for most
+services. Since the underlying [Swagger files](https://github.com/Azure/azure-rest-api-specs)
+continue to change substantially, the ARM packages are still in *beta* status.
+
+The ARM packages now align with the following API versions (*highlighted* packages are new or
+updated in this release):
+
+| api                         | version             | note      |
+|:----------------------------|:--------------------|:----------|
+| arm/authorization           | 2015-07-01          | no change |
+| arm/intune                  | 2015-01-14-preview  | no change |
+| arm/notificationhubs        | 2014-09-01          | no change |
+| arm/resources/features      | 2015-12-01          | no change |
+| arm/resources/subscriptions | 2015-11-01          | no change |
+| arm/web                     | 2015-08-01          | no change |
+| arm/cdn                     | 2016-04-02          | updated   |
+| arm/compute                 | 2016-03-30          | updated   |
+| arm/dns                     | 2016-04-01          | updated   |
+| arm/logic                   | 2015-08-01-preview  | updated   |
+| arm/network                 | 2016-03-30          | updated   |
+| arm/redis                   | 2016-04-01          | updated   |
+| arm/resources/resources     | 2016-02-01          | updated   |
+| arm/resources/policy        | 2015-10-01-preview  | updated   |
+| arm/resources/locks         | 2015-01-01          | updated (resources/authorization earlier)|
+| arm/scheduler               | 2016-03-01          | updated   |
+| arm/storage                 | 2016-01-01          | updated   |
+| arm/search                  | 2015-02-28          | updated   |
+| arm/batch                   | 2015-12-01          | new       |
+| arm/cognitiveservices       | 2016-02-01-preview  | new       |
+| arm/devtestlabs             | 2016-05-15          | new       |
+| arm/machinelearning         | 2016-05-01-preview  | new       |
+| arm/powerbiembedded         | 2016-01-29          | new       |
+| arm/mobileengagement        | 2014-12-01          | new       |
+| arm/servicebus              | 2014-09-01          | new       |
+| arm/sql                     | 2015-05-01          | new       |
+| arm/trafficmanager          | 2015-11-01          | new       |
+
+
+Below are some design changes.
+- Removed Api version from method arguments.
+- Removed New...ClientWithBaseURI() method in all clients. BaseURI value is set in client.go.
+- Uses go-autorest version v7.0.6.
+
+
+## `v2.2.0-beta`
+
+- Uses go-autorest version v7.0.5.
+- Update version of pacakges "jwt-go" and "crypto" in glide.lock.
+
+
 ## `v2.1.1-beta`
 
 - arm: Better error messages for long running operation failures (Uses go-autorest version v7.0.4).
