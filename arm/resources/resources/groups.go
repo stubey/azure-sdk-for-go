@@ -19,10 +19,12 @@ package resources
 // regenerated.
 
 import (
+	"log"
+	"net/http"
+
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/validation"
-	"net/http"
 )
 
 // GroupsClient is the provides operations for working with resources and
@@ -519,16 +521,22 @@ func (client GroupsClient) ListResources(resourceGroupName string, filter string
 		return result, autorest.NewErrorWithError(err, "resources.GroupsClient", "ListResources", nil, "Failure preparing request")
 	}
 
+	log.Printf("TRACE: req = %+v", req)
+
 	resp, err := client.ListResourcesSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
 		return result, autorest.NewErrorWithError(err, "resources.GroupsClient", "ListResources", resp, "Failure sending request")
 	}
 
+	log.Printf("TRACE: resp = %+v", resp)
+
 	result, err = client.ListResourcesResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "resources.GroupsClient", "ListResources", resp, "Failure responding to request")
 	}
+
+	log.Printf("TRACE: result = %+v", result)
 
 	return
 }
