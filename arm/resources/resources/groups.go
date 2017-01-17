@@ -529,14 +529,10 @@ func (client GroupsClient) ListResources(resourceGroupName string, filter string
 		return result, autorest.NewErrorWithError(err, "resources.GroupsClient", "ListResources", resp, "Failure sending request")
 	}
 
-	log.Printf("TRACE: resp = %+v", resp)
-
 	result, err = client.ListResourcesResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "resources.GroupsClient", "ListResources", resp, "Failure responding to request")
 	}
-
-	log.Printf("TRACE: result = %+v", result)
 
 	return
 }
