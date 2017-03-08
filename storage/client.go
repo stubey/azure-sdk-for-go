@@ -463,7 +463,6 @@ func (c Client) exec(verb, url string, headers map[string]string, body io.Reader
 	if err != nil {
 		return nil, err
 	}
-	jbytes, err := renderReq(req)
 
 	statusCode := resp.StatusCode
 	if statusCode >= 400 && statusCode <= 505 {
