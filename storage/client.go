@@ -250,12 +250,10 @@ func (c Client) createAuthorizationHeader(canonicalizedString string) string {
 }
 
 func (c Client) getAuthorizationHeader(verb, url string, headers map[string]string) (string, error) {
-	log.Printf("TRACE: headers = %+v", headers)
 	canonicalizedResource, err := c.buildCanonicalizedResource(url)
 	if err != nil {
 		return "", err
 	}
-	log.Printf("TRACE: canonicalizedResource = %+v", canonicalizedResource)
 
 	canonicalizedString := c.buildCanonicalizedString(verb, headers, canonicalizedResource)
 	return c.createAuthorizationHeader(canonicalizedString), nil
@@ -275,7 +273,6 @@ func (c Client) getCanonicalizedAccountName() string {
 }
 
 func (c Client) buildCanonicalizedHeader(headers map[string]string) string {
-	log.Printf("TRACE: headers = %+v", headers)
 	cm := make(map[string]string)
 
 	for k, v := range headers {
@@ -296,7 +293,6 @@ func (c Client) buildCanonicalizedHeader(headers map[string]string) string {
 	}
 
 	sort.Strings(keys)
-	log.Printf("TRACE: keys = %+v", keys)
 	ch := ""
 
 	for i, key := range keys {
@@ -306,7 +302,6 @@ func (c Client) buildCanonicalizedHeader(headers map[string]string) string {
 			ch += fmt.Sprintf("%s:%s\n", key, cm[key])
 		}
 	}
-	log.Printf("TRACE: ch = %+v", ch)
 	return ch
 }
 
@@ -336,7 +331,6 @@ func (c Client) buildCanonicalizedResourceTable(uri string) (string, error) {
 }
 
 func (c Client) buildCanonicalizedResource(uri string) (string, error) {
-	log.Printf("TRACE: uri - %v", uri)
 	errMsg := "buildCanonicalizedResource error: %s"
 	u, err := url.Parse(uri)
 	if err != nil {
@@ -356,7 +350,6 @@ func (c Client) buildCanonicalizedResource(uri string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf(errMsg, err.Error())
 	}
-	log.Printf("TRACE: params = %+v", params)
 
 	if len(params) > 0 {
 		cr += "\n"
@@ -384,7 +377,6 @@ func (c Client) buildCanonicalizedResource(uri string) (string, error) {
 }
 
 func (c Client) buildCanonicalizedString(verb string, headers map[string]string, canonicalizedResource string) string {
-	log.Printf("TRACE: headers = %+v", headers)
 	contentLength := headers["Content-Length"]
 	if contentLength == "0" {
 		contentLength = ""
@@ -470,11 +462,9 @@ func (c Client) exec(verb, url string, headers map[string]string, body io.Reader
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		log.Printf("TRACE: err = %+v", err)
 		return nil, err
 	}
 	jbytes, err := renderReq(req)
-	log.Printf("TRACE:\n%s", string(jbytes))
 
 	statusCode := resp.StatusCode
 	if statusCode >= 400 && statusCode <= 505 {
