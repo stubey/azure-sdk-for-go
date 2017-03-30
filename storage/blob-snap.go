@@ -103,7 +103,7 @@ func (b BlobStorageClient) Snapshot(container, name string, metaSnap Metadata) (
 		//
 	}
 
-	resp, err := b.client.exec(verb, uri, headers, nil)
+	resp, err := b.client.exec(verb, uri, headers, nil, b.auth)
 	if err != nil {
 		return res, err
 	}
